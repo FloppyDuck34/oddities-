@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dust Days</title>
 <style>
-body{margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;
-display:flex;justify-content:center;align-items:center;min-height:100vh}
+body{margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh}
 #game{width:90%;max-width:800px;background:#222;padding:20px;border-radius:10px}
 h1{text-align:center;letter-spacing:2px;margin-bottom:15px}
 #story{white-space:pre-line;margin-bottom:15px;min-height:300px;line-height:1.5;}
@@ -14,12 +13,13 @@ h1{text-align:center;letter-spacing:2px;margin-bottom:15px}
 button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer;margin-right:5px;}
 button:hover{background:#777}
 #feedback{color:#f66;font-weight:bold;text-align:center;margin-top:10px;}
+#timer{color:#ffcc00;font-weight:bold;text-align:center;margin-bottom:10px;}
 </style>
 </head>
 <body>
-
 <div id="game">
 <h1>Dust Days</h1>
+<div id="timer">Time: 30s</div>
 <div id="story"></div>
 <input id="odditiesInput" placeholder="Type the oddities you noticed…">
 <button id="submitBtn">Submit</button>
@@ -28,88 +28,123 @@ button:hover{background:#777}
 </div>
 
 <script>
-// --- Story Rounds ---
+// --- Story Rounds (1 subtle oddity per paragraph) ---
 const rounds=[
-{ text:`I left the flat again. The kettle was still warm from breakfast. I walked down the road past terraced houses, tiles glinting in the sun. A neighbour waved, but I didn’t recognize her. The pavement was cracked in a few spots. I thought I saw a figure behind a glass door, but when I blinked it was gone.
+{ text:`I left the flat and walked down the road. The kettle in the kitchen was still warm. I noticed the pavement was cracked.
 
-A crow hopped along the gutter, watching me. Its head tilted too perfectly. I kept walking. The swings in the park didn’t move, but the chains made a soft clinking sound. Puddles reflected the sky, though some looked faintly orange. I kicked one lightly. The ripple moved strangely. I returned home and noticed crumbs on my sleeve twitching subtly.`,
-  oddities:["pavement cracked","figure behind glass","crow tilted head","swings clinking","puddles orange","crumbs twitch"]
+The sun hit the terraced houses. One window reflected me, slightly tilted. Birds chirped somewhere, ordinary sounds that felt off.
+
+I reached the small park. The swing set didn’t move, but the chains clinked faintly.`,
+  oddities:["pavement cracked","window tilted","swing chains clink"]
 },
-{ text:`The sky turned pale orange though it wasn’t sunset yet. Shadows stretched across the road in impossible angles. A distant dog barked, but its sound echoed too long. Streetlights flickered even in daylight. A window reflected me, but my reflection blinked slightly after I did. The crow followed me along the park edge. Cracks in the pavement widened as I stepped near.`,
-  oddities:["shadows impossible angles","dog echoed","streetlights flicker","reflection blinked late","crow followed","cracks widened"]
-},
-{ text:`I walked past the shops. One window was smeared with something I couldn’t identify. The lamppost buzzed faintly, though it was still daylight. A cat stared at me, but its eyes seemed too wide, too human. The wind carried a smell of burnt toast even though nothing was cooking. I shivered.`,
-  oddities:["window smeared","lamppost buzzed","cat eyes human","smell burnt toast"]
-},
-{ text:`A narrow alley opened between two buildings. Shadows pooled in corners that shouldn’t exist. I heard footsteps behind me, but no one was there. A poster on a wall appeared to move slightly, as if breathing. The pavement shifted under my feet. The crow cawed once, a sound that felt like a whisper. I hurried past.`,
-  oddities:["shadows impossible corners","footsteps behind","poster breathing","pavement shifting","crow whisper"]
-},
-{ text:`Returning home, the flat felt different. The crumbs on my sleeve were gone, but in the mirror they twitched again. The kettle clicked as if on its own. A faint humming came from the walls. Outside, the street stretched farther than it should, the lampposts leaning unnaturally. I sat down, uneasy, and wondered if I’d ever walked this road before.`,
-  oddities:["crumbs twitch mirror","kettle clicked","walls humming","street stretched","lampposts leaning"]
+{ text:`The street stretched ahead. Shadows fell long, though the sun was high. A distant dog barked, echoing strangely.
+
+I walked past a shop with half-closed shutters. The lamppost hummed faintly. I hurried on.
+
+The alley seemed narrower than usual. Walls were clean but shapes shifted under paint.`,
+  oddities:["shadows echo","lamppost hummed","shapes under paint"]
 }
 ];
 
 let current=0;
 let missed={};
+let baseTime=30; // seconds
+let timerInterval;
 
-// --- Functions ---
+// --- Show Round ---
 function showRound(){
   const round=rounds[current];
   let storyText=round.text;
-
-  // missed oddities return
+  // Amplify missed oddities
   for(const odd in missed){
     if(missed[odd]>=2 && !storyText.includes(odd)){
       storyText+="\n\nThe "+odd+" returns, more insistent this time.";
     }
   }
-
   document.getElementById("story").innerText=storyText;
   document.getElementById("odditiesInput").value="";
   document.getElementById("feedback").innerText="";
   document.getElementById("nextBtn").style.display="none";
   document.getElementById("submitBtn").style.display="inline-block";
+  startTimer(baseTime);
 }
 
-// --- Simulated AI grading ---
+// --- Timer ---
+function startTimer(seconds){
+  clearInterval(timerInterval);
+  let time=seconds;
+  document.getElementById("timer").innerText="Time: "+time+"s";
+  timerInterval=setInterval(()=>{
+    time--;
+    document.getElementById("timer").innerText="Time: "+time+"s";
+    if(time<=0){
+      clearInterval(timerInterval);
+      endRound(true); // timed out
+    }
+  },1000);
+}
+
+// --- Fake AI grading ---
 function fakeAIGrade(answers, correct){
   answers=answers.toLowerCase();
   let missedList=[];
   correct.forEach(o=>{
-    if(!answers.includes(o.split(" ")[0])){ // keyword match
+    if(!answers.includes(o.split(" ")[0])){
       missedList.push(o);
       missed[o]=(missed[o]||0)+1;
+      baseTime=Math.max(10, baseTime-2); // reduce time for next round
     } else { missed[o]=0; }
   });
   if(missedList.length===0) return "Perfect — you spotted everything.";
   return "You missed: "+missedList.join(", ");
 }
 
-// --- Event Listeners ---
-document.getElementById("submitBtn").onclick=()=>{
-  const answers=document.getElementById("odditiesInput").value;
+// --- End Round ---
+function endRound(timedOut=false){
+  clearInterval(timerInterval);
   const round=rounds[current];
-  const result=fakeAIGrade(answers,round.oddities);
+  const answers=document.getElementById("odditiesInput").value;
+  const result=timedOut ? "Time ran out!" : fakeAIGrade(answers,round.oddities);
   document.getElementById("feedback").innerText=result;
   document.getElementById("submitBtn").style.display="none";
   document.getElementById("nextBtn").style.display="inline-block";
-};
+}
+
+// --- Event Listeners ---
+document.getElementById("submitBtn").onclick=()=>{ endRound(false); };
 
 document.getElementById("nextBtn").onclick=()=>{
   current++;
   if(current>=rounds.length){
-    document.getElementById("story").innerText="The world tilts. Everything you missed returns, and consumes you.";
-    document.getElementById("odditiesInput").style.display="none";
-    document.getElementById("submitBtn").style.display="none";
-    document.getElementById("nextBtn").style.display="none";
-    document.getElementById("feedback").innerText="";
+    showEndScreen();
   } else showRound();
 };
+
+// --- Custom End Screen ---
+function showEndScreen(){
+  document.getElementById("story").innerText="";
+  document.getElementById("odditiesInput").style.display="none";
+  document.getElementById("submitBtn").style.display="none";
+  document.getElementById("nextBtn").style.display="none";
+  clearInterval(timerInterval);
+
+  let missedCount=Object.values(missed).reduce((a,b)=>a+b,0);
+  let msg="";
+  if(missedCount===0){
+    msg="You walked the streets carefully. Nothing could surprise you. You survived.";
+  } else if(missedCount<=3){
+    msg="Some things slipped by unnoticed. They linger in the corners, watching.";
+  } else{
+    msg="The missed oddities have consumed your world. Shadows move where they shouldn’t. You are part of the streets now.";
+  }
+  document.getElementById("story").innerText=msg;
+  document.getElementById("timer").innerText="";
+  document.getElementById("feedback").innerText="";
+}
 
 // --- Start ---
 showRound();
 </script>
-
-</bo
-  dy>
+</body>
 </html>
+
