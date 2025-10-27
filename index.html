@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dust Days</title>
+<style>
+body{margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;
+display:flex;justify-content:center;align-items:center;height:100vh}
+#game{width:90%;max-width:800px;background:#222;padding:20px;border-radius:10px}
+h1{text-align:center;letter-spacing:2px}
+#story{white-space:pre-line;margin-bottom:15px;min-height:200px}
+#odditiesInput{width:100%;padding:10px;border:none;border-radius:5px;margin-bottom:10px}
+button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer}
+button:hover{background:#777}
+#feedback{color:#f66;font-weight:bold;text-align:center}
+</style>
+</head>
+<body>
+<div id="game">
+  <h1>Dust Days</h1>
+  <div id="story"></div>
+  <input id="odditiesInput" placeholder="Type the oddities here…">
+  <button id="submitBtn">Submit</button>
+  <button id="nextBtn" style="display:none">Next</button>
+  <p id="feedback"></p>
+</div>
+<script>
+const rounds=[
+ {text:`The kettle clicked off. I looked in the cupboard—no bread. The pavement outside was cracked...`,oddities:["no bread","cracked pavement","too quiet"]},
+ {text:`A lamppost hummed faintly though the sun was out. A crow watched from a gutter.`,oddities:["lamppost hummed","crow watched"]},
+];
+let current=0;
+function showRound(){document.getElementById("story").innerText=rounds[current].text;
+document.getElementById("odditiesInput").value="";
+document.getElementById("feedback").innerText="";
+document.getElementById("nextBtn").style.display="none";}
+showRound();
+document.getElementById("submitBtn").onclick=async()=>{
+ const answers=document.getElementById("odditiesInput").value;
+ const correct=rounds[current].oddities;
+ document.getElementById("feedback").innerText="Checking...";
+ const r=await fetch("/api/grade",{method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({answers,correct})});
+ const data=await r.json();
+ document.getElementById("feedback").innerText=data.message;
+ document.getElementById("nextBtn").style.display="block";
+};
+document.getElementById("nextBtn").onclick=()=>{
+ current++;
+ if(current>=rounds.length){
+   document.getElementById("story").innerText="The world tilts. Everything you missed returns.";
+   document.getElementById("odditiesInput").style.display="none";
+   document.getElementById("submitBtn").style.display="none";
+   document.getElementById("nextBtn").style.display="none";
+ }else showRound();
+};
+</script>
+</body>
+  </html>
