@@ -3,152 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spot the Anomalies</title>
+<title>Oddities</title>
 <style>
   body {
-    margin:0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #121212;
+    margin: 0;
+    background-color: #0d0d0d;
     color: #eee;
+    font-family: "Segoe UI", sans-serif;
+    text-align: center;
+    overflow: hidden;
   }
-  #container {
-    overflow-x: scroll;
-    width: 100vw;
-    height: 500px;
-    border-bottom: 2px solid #444;
-    background-color: #1e1e1e;
-  }
+
   canvas {
     display: block;
-    background-color: #1e1e1e;
+    margin: 0 auto;
+    cursor: crosshair;
+    transition: opacity 0.8s ease;
   }
-  #controls {
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+
+  #feedback {
+    font-size: 18px;
+    margin-top: 12px;
   }
-  button {
+
+  #backBtn {
+    margin-top: 10px;
     padding: 10px 20px;
     font-size: 16px;
+    background-color: #2c2c2c;
+    color: #eee;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    background-color: #333;
-    color: #eee;
-    transition: all 0.2s;
+    display: none;
   }
-  button:hover {
-    background-color: #555;
-  }
-  #feedback {
-    font-weight: bold;
-    margin-left: 20px;
+
+  #backBtn:hover {
+    background-color: #444;
   }
 </style>
 </head>
 <body>
 
-<div id="container">
-  <canvas id="panorama" width="3000" height="500"></canvas>
-</div>
-
-<div id="controls">
-  <button id="startBtn">Start Round</button>
-  <button id="nextRoundBtn">Next Round</button>
-  <span id="feedback">Click "Start Round" to begin.</span>
-</div>
+<canvas id="canvas"></canvas>
+<div id="feedback">Click a part of the scene to explore...</div>
+<button id="backBtn">Go Back</button>
 
 <script>
-const canvas = document.getElementById('panorama');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const feedback = document.getElementById("feedback");
+const backBtn = document.getElementById("backBtn");
 
-let anomalies = [];
-let activeAnomalies = [];
-let found = [];
-
-// --- Load background image hosted on GitHub ---
-const background = new Image();
-background.src = 'https://raw.githubusercontent.com/FloppyDuck34/oddities-/b4f1d9c63637980c7ae954b88c698bfa9e4329ce/freepik__dark-horror-theme-with-a-forest-on-the-left-house-__44224.png'; // <-- Replace
-background.onload = () => {
-    const aspect = background.width / background.height;
-    canvas.width = 1000; // or any width you want
-    canvas.height = canvas.width / aspect; // auto height
-    render();
+// --- Load all background images ---
+const scenes = {
+  outside: new Image(),
+  house: new Image(),
+  forest: new Image()
 };
 
-// --- Define anomalies ---
-anomalies = [
-  {id:1, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly1.png', x:820, y:280, width:50, height:50, image: new Image()},
-  {id:2, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly2.png', x:1520, y:280, width:50, height:50, image: new Image()},
-  {id:3, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly3.png', x:600, y:220, width:50, height:50, image: new Image()}
-];
+// Replace with your GitHub raw image URLs:
+scenes.outside.src = "https://raw.githubusercontent.com/FloppyDuck34/oddities-/b4f1d9c63637980c7ae954b88c698bfa9e4329ce/freepik__dark-horror-theme-with-a-forest-on-the-left-house-__44224.png";
+scenes.house.src   = "https://raw.githubusercontent.com/FloppyDuck34/oddities-/main/house_inside.png";
+scenes.forest.src  = "https://raw.githubusercontent.com/FloppyDuck34/oddities-/main/forest_deep.png";
 
-// Load anomaly images
-anomalies.forEach(a => a.image.src = a.src);
+let currentScene = "outside";
 
 // --- Render function ---
-function render(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+function render() {
+  const img = scenes[currentScene];
+  if (!img.complete) return;
 
-  anomalies.forEach(a => {
-    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
-      ctx.drawImage(a.image, a.x, a.y, a.width, a.height);
-    }
-  });
+  const aspect = img.width / img.height;
+  canvas.width = 1000;
+  canvas.height = canvas.width / aspect;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  if (currentScene === "outside") {
+    feedback.innerText = "Click the forest (left/right) or the house (middle).";
+    backBtn.style.display = "none";
+  } else if (currentScene === "house") {
+    feedback.innerText = "Inside the house. It smells of dust and silence.";
+    backBtn.style.display = "inline-block";
+  } else if (currentScene === "forest") {
+    feedback.innerText = "Deep in the forest. Something stirs behind the trees.";
+    backBtn.style.display = "inline-block";
+  }
 }
 
-// --- Start a round ---
-function startRound(){
-  found=[];
-  activeAnomalies=[];
-  anomalies.forEach(a=>{
-    if(Math.random()<0.5) activeAnomalies.push(a.id);
-  });
-  render();
-  document.getElementById("feedback").innerText = `Find the anomalies! Total: ${activeAnomalies.length}`;
-}
+// --- Handle click events on outside scene ---
+canvas.addEventListener("click", e => {
+  if (currentScene !== "outside") return;
 
-// --- Next round ---
-function nextRound(){
-  // Missed anomalies carry over
-  anomalies.forEach(a=>{
-    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
-      if(!activeAnomalies.includes(a.id)) activeAnomalies.push(a.id);
-    }
-  });
-  // New anomalies may appear
-  anomalies.forEach(a=>{
-    if(!activeAnomalies.includes(a.id) && Math.random()<0.3){
-      activeAnomalies.push(a.id);
-    }
-  });
-  found=[];
-  render();
-  document.getElementById("feedback").innerText = `New round started! Total anomalies: ${activeAnomalies.length}`;
-}
-
-// --- Click detection ---
-canvas.addEventListener('click', e=>{
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  anomalies.forEach(a=>{
-    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
-      if(mx>=a.x && mx<=a.x+a.width && my>=a.y && my<=a.y+a.height){
-        found.push(a.id);
-        render();
-        document.getElementById("feedback").innerText=`Good! Found ${found.length} of ${activeAnomalies.length}`;
-      }
-    }
-  });
+  const third = canvas.width / 3;
+
+  if (mx < third || mx > third * 2) {
+    // Forest click (left or right)
+    fadeToScene("forest");
+  } else {
+    // House click (middle)
+    fadeToScene("house");
+  }
 });
 
-// --- Button events ---
-document.getElementById("startBtn").addEventListener("click",startRound);
-document.getElementById("nextRoundBtn").addEventListener("click",nextRound);
+// --- Transition effect ---
+function fadeToScene(scene) {
+  canvas.style.opacity = 0;
+  setTimeout(() => {
+    currentScene = scene;
+    render();
+    canvas.style.opacity = 1;
+  }, 700);
+}
 
+// --- Back button ---
+backBtn.addEventListener("click", () => {
+  fadeToScene("outside");
+});
+
+// --- Load all images before starting ---
+let loaded = 0;
+const total = Object.keys(scenes).length;
+for (let key in scenes) {
+  scenes[key].onload = () => {
+    loaded++;
+    if (loaded === total) {
+      render();
+    }
+  };
+}
 </script>
 
 </body>
