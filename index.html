@@ -3,145 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Drawn Panorama Anomalies</title>
+<title>Spot the Anomalies</title>
 <style>
-  body { margin:0; font-family:sans-serif; }
-  #container { overflow-x: scroll; width:100vw; border-bottom:2px solid black; }
-  canvas { display:block; background:#f0f0f0; }
-  #controls { padding:10px; }
-  button { padding:8px 16px; margin:5px; }
+  body {
+    margin:0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #eee;
+  }
+  #container {
+    overflow-x: scroll;
+    width: 100vw;
+    height: 500px;
+    border-bottom: 2px solid #444;
+    background-color: #1e1e1e;
+  }
+  canvas {
+    display: block;
+    background-color: #1e1e1e;
+  }
+  #controls {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #333;
+    color: #eee;
+    transition: all 0.2s;
+  }
+  button:hover {
+    background-color: #555;
+  }
+  #feedback {
+    font-weight: bold;
+    margin-left: 20px;
+  }
 </style>
 </head>
 <body>
 
 <div id="container">
-  <canvas id="panorama" width="3000" height="400"></canvas>
+  <canvas id="panorama" width="3000" height="500"></canvas>
 </div>
 
 <div id="controls">
   <button id="startBtn">Start Round</button>
   <button id="nextRoundBtn">Next Round</button>
-  <p id="feedback">Click "Start Round" to begin.</p>
+  <span id="feedback">Click "Start Round" to begin.</span>
 </div>
 
 <script>
 const canvas = document.getElementById('panorama');
 const ctx = canvas.getContext('2d');
+
 let anomalies = [];
 let activeAnomalies = [];
 let found = [];
 
-// DRAW BASE PANORAMA (hand-drawn style)
-function drawBase() {
+// --- Load background image hosted on GitHub ---
+const background = new Image();
+background.src = 'https://raw.githubusercontent.com/USERNAME/REPO/main/background.png'; // <-- Replace
+background.onload = () => { render(); }
+
+// --- Define anomalies ---
+anomalies = [
+  {id:1, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly1.png', x:820, y:280, width:50, height:50, image: new Image()},
+  {id:2, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly2.png', x:1520, y:280, width:50, height:50, image: new Image()},
+  {id:3, src:'https://raw.githubusercontent.com/USERNAME/REPO/main/anomaly3.png', x:600, y:220, width:50, height:50, image: new Image()}
+];
+
+// Load anomaly images
+anomalies.forEach(a => a.image.src = a.src);
+
+// --- Render function ---
+function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 
-  // sky (gradient)
-  let sky = ctx.createLinearGradient(0,0,0,400);
-  sky.addColorStop(0,'#b0d8f0');
-  sky.addColorStop(1,'#e0f4f8');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // ground (textured brush style)
-  ctx.fillStyle = '#c2b280';
-  for(let y=300; y<400; y++){
-    for(let x=0;x<canvas.width;x+=3){
-      ctx.fillRect(x + Math.random()*2, y + Math.random()*1.5, 2, 2);
-    }
-  }
-
-  // rocks (hand-drawn style)
-  drawRock(200,280,40,20);
-  drawRock(800,280,30,15);
-  drawRock(1500,280,50,25);
-
-  // lampposts (sketch style)
-  for(let x=500;x<canvas.width;x+=600){
-    drawLamppost(x,220,10,80);
-  }
-
-  // bakery building
-  drawBakery(1200,200,150,100);
-}
-
-// Draw rock function
-function drawRock(x,y,w,h){
-  ctx.fillStyle='#888';
-  ctx.beginPath();
-  ctx.moveTo(x,y+h);
-  ctx.quadraticCurveTo(x+w/2,y,x+w,y+h);
-  ctx.closePath();
-  ctx.fill();
-}
-
-// Draw lamppost
-function drawLamppost(x,y,w,h){
-  ctx.fillStyle='#444';
-  ctx.fillRect(x,y,w,h);
-  ctx.beginPath();
-  ctx.arc(x+w/2,y,10,0,Math.PI*2);
-  ctx.fill();
-}
-
-// Draw bakery
-function drawBakery(x,y,w,h){
-  ctx.fillStyle='#d9a066';
-  ctx.fillRect(x,y,w,h);
-  ctx.fillStyle='#a0522d';
-  ctx.fillRect(x+w/4,y+h/2,w/2,h/2); // door
-}
-
-// DRAW ANOMALIES (hand-drawn style)
-function drawAnomalies(){
-  anomalies.forEach(a=>{
+  anomalies.forEach(a => {
     if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
-      a.draw(ctx);
+      ctx.drawImage(a.image, a.x, a.y, a.width, a.height);
     }
   });
 }
 
-// DEFINE ANOMALIES
-// Each anomaly has its own draw function for realism
-anomalies = [
-  {
-    id:1, x:820, y:280, width:30, height:15, 
-    draw: (ctx)=>{ // rock shadow mismatch
-      ctx.fillStyle='rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(820+15, 280+15, 30, 8, Math.PI/4, 0, 2*Math.PI);
-      ctx.fill();
-    }
-  },
-  {
-    id:2, x:1520, y:280, width:50, height:25,
-    draw: (ctx)=>{ // floating rock
-      ctx.fillStyle='rgba(100,100,100,0.5)';
-      ctx.beginPath();
-      ctx.moveTo(1520,280+25);
-      ctx.quadraticCurveTo(1520+25,280-5,1520+50,280+25);
-      ctx.fill();
-    }
-  },
-  {
-    id:3, x:600, y:220, width:10, height:80,
-    draw: (ctx)=>{ // tilted lamppost
-      ctx.fillStyle='rgba(68,68,68,0.6)';
-      ctx.save();
-      ctx.translate(600,220);
-      ctx.rotate(Math.PI/18);
-      ctx.fillRect(0,0,10,80);
-      ctx.restore();
-    }
-  }
-];
-
-// RENDER
-function render(){
-  drawBase();
-  drawAnomalies();
-}
-
-// START ROUND
+// --- Start a round ---
 function startRound(){
   found=[];
   activeAnomalies=[];
@@ -149,18 +102,18 @@ function startRound(){
     if(Math.random()<0.5) activeAnomalies.push(a.id);
   });
   render();
-  document.getElementById("feedback").innerText=`Find the anomalies! Total: ${activeAnomalies.length}`;
+  document.getElementById("feedback").innerText = `Find the anomalies! Total: ${activeAnomalies.length}`;
 }
 
-// NEXT ROUND
+// --- Next round ---
 function nextRound(){
-  // missed anomalies carry over
+  // Missed anomalies carry over
   anomalies.forEach(a=>{
     if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
       if(!activeAnomalies.includes(a.id)) activeAnomalies.push(a.id);
     }
   });
-  // new anomalies may appear
+  // New anomalies may appear
   anomalies.forEach(a=>{
     if(!activeAnomalies.includes(a.id) && Math.random()<0.3){
       activeAnomalies.push(a.id);
@@ -168,11 +121,11 @@ function nextRound(){
   });
   found=[];
   render();
-  document.getElementById("feedback").innerText=`New round started! Total anomalies: ${activeAnomalies.length}`;
+  document.getElementById("feedback").innerText = `New round started! Total anomalies: ${activeAnomalies.length}`;
 }
 
-// CLICK DETECTION
-canvas.addEventListener('click',e=>{
+// --- Click detection ---
+canvas.addEventListener('click', e=>{
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
@@ -187,11 +140,10 @@ canvas.addEventListener('click',e=>{
   });
 });
 
-// BUTTONS
+// --- Button events ---
 document.getElementById("startBtn").addEventListener("click",startRound);
 document.getElementById("nextRoundBtn").addEventListener("click",nextRound);
 
-render();
 </script>
 
 </body>
