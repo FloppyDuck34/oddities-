@@ -80,38 +80,42 @@ let rounds=[], missed={}, current=0, baseTime=30, timerInterval, overallTime=180
 // SHUFFLE HELPER
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
-// CREATE ROUNDS WITH MAX 3 ANOMALIES PER ROUND
+// CREATE ROUNDS WITH MAX 3 SUBTLE ANOMALIES
 function createRounds() {
   const shuffledParas = shuffle([...storyParagraphs]);
   const rounds = [];
   let i = 0;
 
   while(i < shuffledParas.length){
-    let paras=[], wordCount = 0;
+    let paras = [], wordCount = 0;
     while(i < shuffledParas.length && wordCount < 200){ 
       paras.push({...shuffledParas[i]});
       wordCount += shuffledParas[i].text.split(" ").length;
       i++;
     }
 
-    // Pick max 3 anomalies total for the round
-    let allAnoms = paras.flatMap(p=>p.oddities);
-    allAnoms = shuffle(allAnoms).slice(0,3);
+    // Pick up to 3 anomalies for the round (maybe fewer)
+    let allAnoms = paras.flatMap(p => p.oddities);
+    if(allAnoms.length > 0){
+      let numToPick = Math.min(3, Math.floor(Math.random() * allAnoms.length) + 1);
+      allAnoms = shuffle(allAnoms).slice(0, numToPick);
+    } else { allAnoms = []; }
+
     let count = 0;
 
-    // Assign anomalies to paragraphs
-    paras.forEach(p=>{
-      p.displayedOddities=[];
-      if(count < allAnoms.length && p.oddities.length>0){
+    // Randomly assign anomalies to some paragraphs only
+    paras.forEach(p => {
+      p.displayedOddities = [];
+      if(count < allAnoms.length && p.oddities.length > 0){
         let available = p.oddities.filter(o => allAnoms.includes(o));
-        if(available.length>0){
+        if(available.length > 0 && Math.random() < 0.5){ // 50% chance
           p.displayedOddities.push(available[0]);
           count++;
         }
       }
     });
 
-    rounds.push({paragraphs:paras});
+    rounds.push({paragraphs: paras});
   }
 
   return rounds;
@@ -220,7 +224,7 @@ function fakeAIGrade(answers, round){
     }
   });
 
-  // Check invalid inputs to amplify anomalies
+  // Detect invalid inputs and amplify anomalies
   words.forEach(w=>{
     if(w.length===0) return;
     let isValid=false;
@@ -231,7 +235,7 @@ function fakeAIGrade(answers, round){
       if(all.includes(w)) isValid=true;
     });
     if(!isValid){
-      // Add subtle amplification
+      // Amplify subtle anomalies by adding one random anomaly per paragraph
       round.paragraphs.forEach(p=>{
         const extras = shuffle(p.oddities).slice(0,1);
         extras.forEach(e=>{
@@ -276,11 +280,13 @@ document.getElementById("submitBtn").addEventListener("click",()=>{
   const input = document.getElementById("odditiesInput").value;
   const round = rounds[current];
   const missedAnomalies = fakeAIGrade(input, round);
+
   if(missedAnomalies.length===0){
     document.getElementById("feedback").innerText="You spotted all anomalies!";
   } else {
     document.getElementById("feedback").innerText="Some oddities remain unseen...";
   }
+
   clearInterval(timerInterval);
   nextRoundOrOver();
 });
