@@ -5,130 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dust Days</title>
 <style>
-body {
-  margin:0; background:#111; color:#eee;
-  font-family:'Courier New',monospace;
-  display:flex; justify-content:center; align-items:center;
-  min-height:100vh;
-}
-#game { width:90%; max-width:800px; background:#222; padding:20px; border-radius:10px; }
-h1 { text-align:center; letter-spacing:2px; margin-bottom:15px; }
-#story { white-space:pre-line; margin-bottom:15px; min-height:280px; line-height:1.5; }
-#odditiesInput { width:100%; padding:10px; border:none; border-radius:5px; margin-bottom:10px; }
-button {
-  padding:10px 20px; border:none; border-radius:5px;
-  background:#555; color:#fff; cursor:pointer; margin-right:5px;
-}
-button:hover { background:#777; }
-#feedback { color:#f66; font-weight:bold; text-align:center; margin-top:10px; }
-#timer { color:#ffcc00; font-weight:bold; text-align:center; margin-bottom:10px; }
-.hidden { display:none; }
+body {margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+#game {width:90%; max-width:800px; background:#222; padding:20px; border-radius:10px;}
+h1{text-align:center; letter-spacing:2px;margin-bottom:15px;}
+#story{white-space:pre-line;margin-bottom:15px;min-height:280px;line-height:1.5;}
+#odditiesInput{width:100%;padding:10px;border:none;border-radius:5px;margin-bottom:10px;}
+button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer;margin-right:5px;}
+button:hover{background:#777;}
+#feedback{color:#f66;font-weight:bold;text-align:center;margin-top:10px;}
+#timer{color:#ffcc00;font-weight:bold;text-align:center;margin-bottom:10px;}
+.hidden{display:none;}
 </style>
 </head>
 <body>
 <div id="game">
-  <!-- START SCREEN -->
-  <div id="startScreen">
-    <h1>Dust Days</h1>
-    <p style="text-align:center;">The day begins like any other.<br>It will not stay that way.</p>
-    <div style="text-align:center;"><button id="startBtn">Start</button></div>
-  </div>
 
-  <!-- PLAY AREA -->
-  <div id="playArea" class="hidden">
-    <div id="timer">Time: 30s</div>
-    <div id="story"></div>
-    <input id="odditiesInput" placeholder="What seemed off?">
-    <div style="text-align:center;">
-      <button id="submitBtn">Submit</button>
-      <button id="nextBtn" class="hidden">Next</button>
-    </div>
-    <p id="feedback"></p>
-  </div>
+<!-- START SCREEN -->
+<div id="startScreen">
+<h1>Dust Days</h1>
+<p style="text-align:center;">The day begins like any other.<br>It will not stay that way.</p>
+<div style="text-align:center;"><button id="startBtn">Start</button></div>
+</div>
 
-  <!-- END SCREEN -->
-  <div id="endScreen" class="hidden">
-    <h2 id="endingTitle" style="text-align:center;"></h2>
-    <p id="endingText" style="white-space:pre-line; text-align:center;"></p>
-    <div style="text-align:center;">
-      <button id="restartBtn">Restart</button>
-    </div>
-  </div>
+<!-- PLAY AREA -->
+<div id="playArea" class="hidden">
+<div id="timer">Time: 30s</div>
+<div id="story"></div>
+<input id="odditiesInput" placeholder="What seemed off?">
+<div style="text-align:center;">
+<button id="submitBtn">Submit</button>
+<button id="nextBtn" class="hidden">Next</button>
+</div>
+<p id="feedback"></p>
+</div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="hidden">
+<h2 id="endingTitle" style="text-align:center;"></h2>
+<p id="endingText" style="white-space:pre-line; text-align:center;"></p>
+<div style="text-align:center;">
+<button id="restartBtn">Restart</button>
+</div>
+</div>
 </div>
 
 <script>
-// ----- SYNONYMS -----
+// SYNONYMS
 const synonyms = {
-  crow: ["bird","raven","blackbird"],
-  lamppost: ["lamp","streetlight","light"],
-  swing: ["chains","seat","playground"],
-  pavement: ["road","path","sidewalk"],
-  reflection: ["mirror","glass","window"],
-  bag: ["bin","rubbish","plastic"],
-  curtain: ["drape","window"],
-  door: ["entrance","shopdoor"]
+  crow:["bird","raven","blackbird"],
+  lamppost:["lamp","streetlight","light"],
+  swing:["chains","seat","playground"],
+  pavement:["road","path","sidewalk"],
+  reflection:["mirror","glass","window"],
+  bag:["bin","rubbish","plastic"],
+  curtain:["drape","window"],
+  door:["entrance","shopdoor"]
 };
 
-// ----- BASE STORY -----
-const baseStory = [
-  "The kettle clicked off just as I stepped away. I looked in the cupboard. No bread. I’d have to go out.",
-  "The pavement outside was cracked and dusty. The same cracks as yesterday, maybe deeper.",
-  "At the junction a lamppost leaned a little, humming softly.",
-  "I passed the small park. The swings were still. One chain creaked when the wind touched it.",
-  "A crow watched from the fence as I crossed toward the bakery.",
-  "The door to the shop resisted before opening. Warm air met me, thick with flour and something else.",
-  "The shelves looked full but light somehow, as if the loaves were hollow.",
-  "A coin rolled under the counter though no one had dropped it.",
-  "When I left, my reflection in the bakery window seemed to move half a second late.",
-  "Back on the road, a bin bag twitched once, then went still."
-];
-
-// Possible anomalies for each paragraph
-const anomaliesPool = [
-  ["pavement cracked"],
-  ["lamppost humming"],
-  ["swing chain creaked"],
-  ["crow stared too long"],
-  ["door resisted"],
-  ["shelves hollow"],
-  ["coin rolled alone"],
-  ["reflection lagged"],
-  ["bag twitched"]
+// STORY PARAGRAPHS
+const storyParagraphs = [
+  { text:"The kettle clicked off just as I stepped away. I looked in the cupboard.", oddities:[] },
+  { text:"The pavement outside was cracked and dusty.", oddities:["pavement cracked"] },
+  { text:"At the junction a lamppost leaned a little, humming softly.", oddities:["lamppost humming"] },
+  { text:"I passed the small park. The swings were still. One chain creaked when the wind touched it.", oddities:["swing chain creaked"] },
+  { text:"A crow watched from the fence as I crossed toward the bakery.", oddities:["crow stared too long"] },
+  { text:"The door to the shop resisted before opening.", oddities:["door resisted"] },
+  { text:"The shelves looked full but light somehow.", oddities:["shelves hollow"] },
+  { text:"A coin rolled under the counter though no one had dropped it.", oddities:["coin rolled alone"] },
+  { text:"When I left, my reflection in the bakery window seemed to move half a second late.", oddities:["reflection lagged"] },
+  { text:"Back on the road, a bin bag twitched once, then went still.", oddities:["bag twitched"] }
 ];
 
 let rounds=[], missed={}, current=0, baseTime=30, timerInterval;
 
-// ----- START GAME -----
+// SHUFFLE HELPER
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+// PICK RANDOM ANOMALIES
+function pickRandomAnomalies() {
+  return storyParagraphs.map(p=>{
+    if(p.oddities.length===0) return {...p, displayedOddities:[]};
+    const include = Math.random()<0.5; // 50% chance
+    return {...p, displayedOddities: include ? p.oddities : []};
+  });
+}
+
+// CREATE ROUNDS
+function createRounds(){
+  const selectedParagraphs = pickRandomAnomalies();
+  const rounds = [];
+  for(let i=0;i<5;i++){
+    const paras = selectedParagraphs.slice(i*2,i*2+2);
+    rounds.push({paragraphs:paras});
+  }
+  return rounds;
+}
+
+// START GAME
 function startGame(){
   document.getElementById("startScreen").classList.add("hidden");
   document.getElementById("endScreen").classList.add("hidden");
   document.getElementById("playArea").classList.remove("hidden");
 
-  rounds = [];
-  for(let i=0;i<5;i++){
-    // two paragraphs per round
-    const paras = baseStory.slice(i*2, i*2+2).join("\n\n");
-    const randomAnoms = shuffle([...anomaliesPool]).slice(0, Math.min(3, anomaliesPool.length));
-    rounds.push({
-      text: paras,
-      oddities: randomAnoms.map(a=>a[0])
-    });
-  }
+  rounds = createRounds();
+  current = 0;
+  missed = {};
+  baseTime = 30;
 
-  current = 0; missed = {}; baseTime = 30;
   showRound();
 }
 
-function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-
-// ----- SHOW ROUND -----
+// SHOW ROUND
 function showRound(){
   const round = rounds[current];
+  const parasToShow = round.paragraphs.map(p=>p.text).join("\n\n");
+  round.displayedOddities = round.paragraphs.flatMap(p=>p.displayedOddities);
 
-  // pick displayed anomalies
-  round.displayedOddities = shuffle([...round.oddities]);
-
-  document.getElementById("story").innerText = round.text;
+  document.getElementById("story").innerText = parasToShow;
   document.getElementById("odditiesInput").value = "";
   document.getElementById("feedback").innerText = "";
   document.getElementById("nextBtn").classList.add("hidden");
@@ -137,14 +130,14 @@ function showRound(){
   startTimer(baseTime);
 }
 
-// ----- TIMER -----
+// TIMER
 function startTimer(seconds){
   clearInterval(timerInterval);
-  let time = seconds;
-  document.getElementById("timer").innerText = "Time: " + time + "s";
-  timerInterval = setInterval(()=>{
+  let time=seconds;
+  document.getElementById("timer").innerText="Time: "+time+"s";
+  timerInterval=setInterval(()=>{
     time--;
-    document.getElementById("timer").innerText = "Time: " + time + "s";
+    document.getElementById("timer").innerText="Time: "+time+"s";
     if(time<=0){
       clearInterval(timerInterval);
       const round = rounds[current];
@@ -152,43 +145,41 @@ function startTimer(seconds){
         missed[o] = (missed[o]||0)+1;
         baseTime = Math.max(10, baseTime-2);
       });
-      document.getElementById("feedback").innerText="You hesitated too long. The world moved without you.";
+      document.getElementById("feedback").innerText="You waited too long. Everything moved without you.";
       endRound();
     }
   },1000);
 }
 
-// ----- GRADING -----
+// AI GRADING
 function fakeAIGrade(answers, round){
-  answers = answers.toLowerCase();
-  let missedList = [];
-
+  answers=answers.toLowerCase();
+  let missedList=[];
   round.displayedOddities.forEach(o=>{
     const words = o.toLowerCase().split(" ");
     const extra = synonyms[words[0]]||[];
-    const all = [...words, ...extra];
-    const match = all.some(word => answers.includes(word));
+    const all = [...words,...extra];
+    const match = all.some(word=>answers.includes(word));
     if(!match){
       missedList.push(o);
       missed[o] = (missed[o]||0)+1;
       baseTime = Math.max(10, baseTime-2);
     } else {
-      missed[o] = 0;
+      missed[o]=0;
     }
   });
-
   if(missedList.length===0) return "You saw it all. Nothing slipped by.";
-  return "You missed: " + missedList.join(", ");
+  return "You missed: "+missedList.join(", ");
 }
 
-// ----- END ROUND -----
+// END ROUND
 function endRound(){
   clearInterval(timerInterval);
   document.getElementById("submitBtn").classList.add("hidden");
   document.getElementById("nextBtn").classList.remove("hidden");
 }
 
-// ----- BUTTONS -----
+// BUTTONS
 document.getElementById("submitBtn").onclick = ()=>{
   clearInterval(timerInterval);
   const answers = document.getElementById("odditiesInput").value;
@@ -204,7 +195,7 @@ document.getElementById("nextBtn").onclick = ()=>{
   else showRound();
 };
 
-// ----- END SCREEN -----
+// END SCREEN
 function showEndScreen(){
   clearInterval(timerInterval);
   document.getElementById("playArea").classList.add("hidden");
@@ -226,11 +217,13 @@ function showEndScreen(){
   document.getElementById("endingText").innerText=text;
 }
 
+// RESTART
 document.getElementById("restartBtn").onclick = ()=>{
   document.getElementById("endScreen").classList.add("hidden");
   document.getElementById("startScreen").classList.remove("hidden");
 };
 
+// START BUTTON
 document.getElementById("startBtn").onclick=startGame;
 </script>
 </body>
