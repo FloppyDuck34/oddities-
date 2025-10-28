@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dust Days</title>
+<title>Dust Days: Overwhelmed</title>
 <style>
 body {margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;}
-#game {width:90%; max-width:800px; background:#222; padding:20px; border-radius:10px;}
+#game {width:90%; max-width:900px; background:#222; padding:20px; border-radius:10px;}
 h1{text-align:center; letter-spacing:2px;margin-bottom:15px;}
-#story{white-space:pre-line;margin-bottom:15px;min-height:280px;line-height:1.5;}
+#story{white-space:pre-line;margin-bottom:15px;min-height:400px;line-height:1.6;}
 #odditiesInput{width:100%;padding:10px;border:none;border-radius:5px;margin-bottom:10px;}
 button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer;margin-right:5px;}
 button:hover{background:#777;}
@@ -29,7 +29,7 @@ button:hover{background:#777;}
 
 <!-- PLAY AREA -->
 <div id="playArea" class="hidden">
-<div id="timer">Time: 30s</div>
+<div id="timer">Time: 180s</div>
 <div id="story"></div>
 <input id="odditiesInput" placeholder="What seemed off?">
 <div style="text-align:center;">
@@ -50,7 +50,7 @@ button:hover{background:#777;}
 </div>
 
 <script>
-// SYNONYMS
+// SYNONYMS FOR WIDE ANSWER CHECK
 const synonyms = {
   crow:["bird","raven","blackbird"],
   lamppost:["lamp","streetlight","light"],
@@ -62,40 +62,54 @@ const synonyms = {
   door:["entrance","shopdoor"]
 };
 
-// STORY PARAGRAPHS
+// STORY PARAGRAPHS WITH SUBTLE ANOMALIES
 const storyParagraphs = [
-  { text:"The kettle clicked off just as I stepped away. I looked in the cupboard.", oddities:[] },
-  { text:"The pavement outside was cracked and dusty.", oddities:["pavement cracked"] },
-  { text:"At the junction a lamppost leaned a little, humming softly.", oddities:["lamppost humming"] },
-  { text:"I passed the small park. The swings were still. One chain creaked when the wind touched it.", oddities:["swing chain creaked"] },
-  { text:"A crow watched from the fence as I crossed toward the bakery.", oddities:["crow stared too long"] },
-  { text:"The door to the shop resisted before opening.", oddities:["door resisted"] },
-  { text:"The shelves looked full but light somehow.", oddities:["shelves hollow"] },
-  { text:"A coin rolled under the counter though no one had dropped it.", oddities:["coin rolled alone"] },
-  { text:"When I left, my reflection in the bakery window seemed to move half a second late.", oddities:["reflection lagged"] },
-  { text:"Back on the road, a bin bag twitched once, then went still.", oddities:["bag twitched"] }
+  { text:"The kettle clicked off just as I stepped away. Steam swirled lazily above the rim. The cupboard stared back at me, empty yet somehow expectant. Outside, the road shimmered with morning dust, and a distant hum ran through the air.", oddities:[] },
+  { text:"The pavement outside was cracked and dusty, a network of faint fissures like veins. Shadows leaned over them, stretching unnaturally with the sun. I walked slowly, noticing a small ripple in the concrete that had not been there yesterday.", oddities:["pavement rippled"] },
+  { text:"At the junction a lamppost leaned a little, humming softly, as if it remembered some tune. A bird perched atop, staring longer than any bird should. Its shadow flickered oddly on the road, twitching out of sync with the movement of leaves.", oddities:["lamppost humming","bird stared too long"] },
+  { text:"I passed the small park. The swings were still, though a chain whispered once when the wind touched it. The benches sagged faintly, and the grass smelled faintly of dust and something sour beneath. A shadow moved behind the trees, just at the edge of vision.", oddities:["swing chain whispered","shadow behind trees"] },
+  { text:"A crow watched from the fence as I crossed toward the bakery. Its black eyes glinted unnaturally. The wooden fence warped slightly, creaking a note that was almost a word. The air felt heavier here, like breathing through thick cloth.", oddities:["crow stared too long","fence warped"] },
+  { text:"The door to the shop resisted before opening. A soft click echoed even after it swung back. The smell of flour hit first, then something else lingered beneath it, sweet and bitter at once. My reflection in the glass seemed a half-second behind my movement.", oddities:["door resisted","reflection lagged"] },
+  { text:"The shelves looked full but light somehow. Loaves sat upright, crusts gleaming unnaturally. A coin rolled under the counter though no one had touched it. I wondered if the light itself was thinner here, diffused oddly, slipping through the gaps.", oddities:["shelves hollow","coin rolled alone"] },
+  { text:"Back on the road, a bin bag twitched once, then went still. The lamppost hummed again. A leaf drifted upward against the wind, lingering in the air longer than it should. My shoes scuffed the dust, but no mark remained behind me.", oddities:["bag twitched","leaf lingered"] }
 ];
 
-let rounds=[], missed={}, current=0, baseTime=30, timerInterval;
+// GAME VARIABLES
+let rounds=[], missed={}, current=0, baseTime=30, timerInterval, overallTime=180, overallInterval;
 
 // SHUFFLE HELPER
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
-// PICK RANDOM ANOMALIES
+// PICK RANDOM ANOMALIES & CREATE ROUNDS
 function pickRandomAnomalies() {
-  return storyParagraphs.map(p=>{
-    if(p.oddities.length===0) return {...p, displayedOddities:[]};
-    const include = Math.random()<0.5; // 50% chance
-    return {...p, displayedOddities: include ? p.oddities : []};
-  });
+  return storyParagraphs.map(p=>({...p, displayedOddities: []}));
 }
 
-// CREATE ROUNDS
-function createRounds(){
-  const selectedParagraphs = pickRandomAnomalies();
+function createRounds() {
+  const shuffledParas = shuffle([...storyParagraphs]);
   const rounds = [];
-  for(let i=0;i<5;i++){
-    const paras = selectedParagraphs.slice(i*2,i*2+2);
+  let i = 0;
+
+  while(i < shuffledParas.length){
+    let paras=[], wordCount=0;
+    while(i < shuffledParas.length && wordCount < 200){ // 200+ words per section
+      paras.push({...shuffledParas[i]});
+      wordCount += shuffledParas[i].text.split(" ").length;
+      i++;
+    }
+
+    // Randomly assign up to 3 anomalies
+    let allAnoms = paras.flatMap(p=>p.oddities);
+    allAnoms = shuffle(allAnoms).slice(0,3);
+    let count=0;
+    paras.forEach(p=>{
+      p.displayedOddities=[];
+      if(count<allAnoms.length && p.oddities.length>0){
+        p.displayedOddities.push(allAnoms[count]);
+        count++;
+      }
+    });
+
     rounds.push({paragraphs:paras});
   }
   return rounds;
@@ -108,124 +122,154 @@ function startGame(){
   document.getElementById("playArea").classList.remove("hidden");
 
   rounds = createRounds();
-  current = 0;
-  missed = {};
-  baseTime = 30;
+  current=0; missed={}; baseTime=30; overallTime=180;
 
+  startOverallTimer();
   showRound();
 }
 
 // SHOW ROUND
 function showRound(){
   const round = rounds[current];
-  const parasToShow = round.paragraphs.map(p=>p.text).join("\n\n");
+  let parasToShow = round.paragraphs.map(p=>p.text).join("\n\n");
+
+  // Amplify missed anomalies or invalid previous guesses
+  round.paragraphs.forEach(p=>{
+    p.displayedOddities.forEach(o=>{
+      if((missed[o]||0)>0){
+        parasToShow += `\n\nA subtle echo of the ${o} flickers again.`;
+      }
+    });
+  });
+
   round.displayedOddities = round.paragraphs.flatMap(p=>p.displayedOddities);
 
   document.getElementById("story").innerText = parasToShow;
-  document.getElementById("odditiesInput").value = "";
-  document.getElementById("feedback").innerText = "";
+  document.getElementById("odditiesInput").value="";
+  document.getElementById("feedback").innerText="";
   document.getElementById("nextBtn").classList.add("hidden");
   document.getElementById("submitBtn").classList.remove("hidden");
 
-  startTimer(baseTime);
+  startRoundTimer(baseTime);
 }
 
-// TIMER
-function startTimer(seconds){
+// ROUND TIMER
+function startRoundTimer(seconds){
   clearInterval(timerInterval);
   let time=seconds;
-  document.getElementById("timer").innerText="Time: "+time+"s";
+  document.getElementById("timer").innerText="Time: "+overallTime+"s";
   timerInterval=setInterval(()=>{
     time--;
-    document.getElementById("timer").innerText="Time: "+time+"s";
+    overallTime--;
+    document.getElementById("timer").innerText="Time: "+overallTime+"s";
     if(time<=0){
       clearInterval(timerInterval);
-      const round = rounds[current];
-      round.displayedOddities.forEach(o=>{
-        missed[o] = (missed[o]||0)+1;
-        baseTime = Math.max(10, baseTime-2);
-      });
-      document.getElementById("feedback").innerText="You waited too long. Everything moved without you.";
-      endRound();
+      handleMissedRound();
+    }
+    if(overallTime<=0){
+      clearInterval(timerInterval);
+      clearInterval(overallInterval);
+      gameOver("Time ran out. The dust consumes everything in its path.");
     }
   },1000);
+}
+
+// OVERALL TIMER
+function startOverallTimer(){
+  clearInterval(overallInterval);
+  overallInterval=setInterval(()=>{
+    overallTime--;
+    document.getElementById("timer").innerText="Time: "+overallTime+"s";
+    if(overallTime<=0){
+      clearInterval(overallInterval);
+      gameOver("Time ran out. The dust consumes everything in its path.");
+    }
+  },1000);
+}
+
+// HANDLE MISSED ROUND
+function handleMissedRound(){
+  const round=rounds[current];
+  round.displayedOddities.forEach(o=>{
+    missed[o]=(missed[o]||0)+1;
+    baseTime=Math.max(10,baseTime-2);
+  });
+  document.getElementById("feedback").innerText="You waited too long. The world moves on without you.";
+  nextRoundOrOver();
 }
 
 // AI GRADING
 function fakeAIGrade(answers, round){
   answers=answers.toLowerCase();
-  let missedList=[];
+  let missedList=[], invalidInputs=[];
+  const words = answers.split(/[\s,]+/);
+
   round.displayedOddities.forEach(o=>{
-    const words = o.toLowerCase().split(" ");
-    const extra = synonyms[words[0]]||[];
-    const all = [...words,...extra];
-    const match = all.some(word=>answers.includes(word));
+    const oWords=o.toLowerCase().split(" ");
+    const extra = synonyms[oWords[0]]||[];
+    const all=[...oWords,...extra];
+    const match = all.some(word=>words.includes(word));
     if(!match){
       missedList.push(o);
-      missed[o] = (missed[o]||0)+1;
-      baseTime = Math.max(10, baseTime-2);
+      missed[o]=(missed[o]||0)+1;
+      baseTime=Math.max(10,baseTime-2);
     } else {
       missed[o]=0;
     }
   });
+
+  // Detect invalid inputs
+  words.forEach(w=>{
+    let isValid=false;
+    round.displayedOddities.forEach(o=>{
+      const oWords=o.toLowerCase().split(" ");
+      const extra = synonyms[oWords[0]]||[];
+      const all=[...oWords,...extra];
+      if(all.includes(w)) isValid=true;
+    });
+    if(!isValid && w.length>0) invalidInputs.push(w);
+  });
+
+  // Amplify for invalid inputs
+  if(invalidInputs.length>0){
+    round.paragraphs.forEach(p=>{
+      const extras = shuffle(p.oddities).slice(0,1);
+      p.displayedOddities.push(...extras);
+    });
+  }
+
   if(missedList.length===0) return "You saw it all. Nothing slipped by.";
   return "You missed: "+missedList.join(", ");
 }
 
-// END ROUND
-function endRound(){
+// END ROUND / NEXT
+function nextRoundOrOver(){
   clearInterval(timerInterval);
   document.getElementById("submitBtn").classList.add("hidden");
   document.getElementById("nextBtn").classList.remove("hidden");
 }
 
-// BUTTONS
 document.getElementById("submitBtn").onclick = ()=>{
   clearInterval(timerInterval);
-  const answers = document.getElementById("odditiesInput").value;
-  const round = rounds[current];
-  const result = fakeAIGrade(answers, round);
-  document.getElementById("feedback").innerText = result;
-  endRound();
+  const answers=document.getElementById("odditiesInput").value;
+  const round=rounds[current];
+  const result=fakeAIGrade(answers,round);
+  document.getElementById("feedback").innerText=result;
+  nextRoundOrOver();
 };
 
 document.getElementById("nextBtn").onclick = ()=>{
   current++;
-  if(current>=rounds.length) showEndScreen();
-  else showRound();
+  if(current>=rounds.length){
+    // Generate new round for continuous play
+    rounds.push(...createRounds());
+  }
+  showRound();
 };
 
 // END SCREEN
-function showEndScreen(){
+function gameOver(message){
   clearInterval(timerInterval);
+  clearInterval(overallInterval);
   document.getElementById("playArea").classList.add("hidden");
-  document.getElementById("endScreen").classList.remove("hidden");
-
-  const missedCount = Object.values(missed).reduce((a,b)=>a+b,0);
-  let title="", text="";
-  if(missedCount===0){
-    title="You Passed Unseen.";
-    text="The road straightens. The air is still.\nFor now, you are alone.";
-  } else if(missedCount<=4){
-    title="Something Watches.";
-    text="You walked faster, but not fast enough.\nA few things kept pace.";
-  } else {
-    title="The Dust Knows You.";
-    text="Every reflection turns toward you now.\nYou left the road long ago, though you keep walking.";
-  }
-  document.getElementById("endingTitle").innerText=title;
-  document.getElementById("endingText").innerText=text;
-}
-
-// RESTART
-document.getElementById("restartBtn").onclick = ()=>{
-  document.getElementById("endScreen").classList.add("hidden");
-  document.getElementById("startScreen").classList.remove("hidden");
-};
-
-// START BUTTON
-document.getElementById("startBtn").onclick=startGame;
-</script>
-</body>
-  </html>
-  
+  document.getElementById
