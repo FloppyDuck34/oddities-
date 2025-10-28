@@ -1,150 +1,457 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dust Days</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dust Days — Spot the Subtle</title>
 <style>
-body{margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh}
-#game{width:90%;max-width:800px;background:#222;padding:20px;border-radius:10px}
-h1{text-align:center;letter-spacing:2px;margin-bottom:15px}
-#story{white-space:pre-line;margin-bottom:15px;min-height:300px;line-height:1.5;}
-#odditiesInput{width:100%;padding:10px;border:none;border-radius:5px;margin-bottom:10px;}
-button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer;margin-right:5px;}
-button:hover{background:#777}
-#feedback{color:#f66;font-weight:bold;text-align:center;margin-top:10px;}
-#timer{color:#ffcc00;font-weight:bold;text-align:center;margin-bottom:10px;}
+  :root{
+    --bg:#0b0b0c; --panel:#121214; --muted:#a8a8a8; --accent:#d6b35a; --danger:#d45a5a;
+  }
+  html,body{height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; background:linear-gradient(180deg,#080809,#0d0d0e); color:#eee;}
+  .wrap{max-width:980px; margin:20px auto; padding:18px;}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.03);}
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
+  h1{font-size:1.6rem; margin:0; letter-spacing:0.6px;}
+  p.lead{margin:6px 0 0; color:var(--muted); font-size:0.95rem;}
+  #startScreen, #gameScreen, #endScreen{min-height:280px;}
+  .btn{background:var(--accent); color:#080808; border:none; padding:10px 14px; border-radius:8px; font-weight:700; cursor:pointer;}
+  .btn.ghost{background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04);}
+  #story{white-space:pre-line; line-height:1.6; min-height:260px; margin-bottom:12px; font-size:1rem;}
+  #timerBar{height:10px; background:#222; border-radius:8px; overflow:hidden; margin-bottom:12px;}
+  #timerFill{height:100%; width:100%; background:linear-gradient(90deg,var(--accent), #cfa24e); transition:width 0.2s linear;}
+  #controls{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;}
+  input[type="text"]{flex:1; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit; min-width:160px;}
+  .small{font-size:0.88rem; color:var(--muted);}
+  #feedback{margin-top:10px; min-height:36px;}
+  .found{color:#8fe28f;}
+  .missed{color:var(--danger);}
+  footer{display:flex; justify-content:space-between; gap:12px; margin-top:14px; color:var(--muted); font-size:0.9rem;}
+  @media(max-width:560px){ h1{font-size:1.3rem;} .wrap{padding:12px;} #story{font-size:0.95rem;} }
 </style>
 </head>
 <body>
-<div id="game">
-<h1>Dust Days</h1>
-<div id="timer">Time: 30s</div>
-<div id="story"></div>
-<input id="odditiesInput" placeholder="Type the oddities you noticed…">
-<button id="submitBtn">Submit</button>
-<button id="nextBtn" style="display:none">Next</button>
-<p id="feedback"></p>
+<div class="wrap">
+  <div class="card" id="startScreen">
+    <header>
+      <div>
+        <h1>Dust Days</h1>
+        <p class="lead">Read closely. One subtle wrongness per paragraph. Miss it and it comes back. Time is short.</p>
+      </div>
+      <div>
+        <button class="btn" id="startBtn">Start</button>
+      </div>
+    </header>
+
+    <div style="padding:6px 4px; color:var(--muted); line-height:1.5;">
+      <p><strong>How it works</strong></p>
+      <ul style="margin:6px 0 0 20px; color:var(--muted)">
+        <li>Five rounds, each round three short paragraphs.</li>
+        <li>At most one subtle anomaly per paragraph — sometimes near-imperceptible.</li>
+        <li>Type what you noticed and press Submit. Be specific.</li>
+        <li>If time runs out for a round, all anomalies for that round are treated as missed.</li>
+        <li>Missed anomalies persist and will escalate later if you keep missing them.</li>
+      </ul>
+    </div>
+    <footer>
+      <div class="small">Designed for replayability — anomalies are randomized each playthrough.</div>
+      <div class="small">Harder to spot. Stay attentive.</div>
+    </footer>
+  </div>
+
+  <div class="card hidden" id="gameScreen" aria-live="polite">
+    <header style="margin-bottom:10px;">
+      <div>
+        <h1 id="title">Dust Days</h1>
+        <p class="small" id="roundLabel">Round 1 / 5</p>
+      </div>
+      <div style="text-align:right">
+        <div id="timerText" class="small">Time: 30s</div>
+        <div id="timerBar"><div id="timerFill"></div></div>
+        <div class="small" id="timeNote">Timer decreases if you miss anomalies.</div>
+      </div>
+    </header>
+
+    <main>
+      <div id="story"></div>
+
+      <div id="controls">
+        <input id="answerInput" type="text" placeholder="List the oddities you noticed (be specific)" autocomplete="off" autocapitalize="off">
+        <button class="btn" id="submitBtn">Submit</button>
+        <button class="btn ghost hidden" id="nextBtn">Next</button>
+      </div>
+
+      <div id="feedback" class="small"></div>
+    </main>
+
+    <footer>
+      <div class="small">Missed: <span id="missCount">0</span></div>
+      <div class="small">Minimum time: <span id="minTimeDisplay">8</span>s</div>
+    </footer>
+  </div>
+
+  <div class="card hidden" id="endScreen">
+    <header>
+      <div>
+        <h1 id="endTitle">—</h1>
+        <p class="lead" id="endSub">—</p>
+      </div>
+      <div>
+        <button class="btn" id="restartBtn">Restart</button>
+      </div>
+    </header>
+    <div id="endBody" style="margin-top:8px; color:var(--muted)"></div>
+    <footer style="margin-top:10px;">
+      <div class="small">Play again to see other oddities. They change every time.</div>
+    </footer>
+  </div>
 </div>
 
 <script>
-// --- Story Rounds (1 subtle oddity per paragraph) ---
-const rounds=[
-{ text:`I left the flat and walked down the road. The kettle in the kitchen was still warm. I noticed the pavement was cracked.
+/* ========= Utility functions ========= */
 
-The sun hit the terraced houses. One window reflected me, slightly tilted. Birds chirped somewhere, ordinary sounds that felt off.
-
-I reached the small park. The swing set didn’t move, but the chains clinked faintly.`,
-  oddities:["pavement cracked","window tilted","swing chains clink"]
-},
-{ text:`The street stretched ahead. Shadows fell long, though the sun was high. A distant dog barked, echoing strangely.
-
-I walked past a shop with half-closed shutters. The lamppost hummed faintly. I hurried on.
-
-The alley seemed narrower than usual. Walls were clean but shapes shifted under paint.`,
-  oddities:["shadows echo","lamppost hummed","shapes under paint"]
+// Normalize string for fuzzy compare
+function norm(s){
+  return String(s||'').toLowerCase().replace(/[^\w\s]/g,' ').replace(/\s+/g,' ').trim();
 }
+
+// Levenshtein distance
+function levenshtein(a,b){
+  a = a||''; b = b||'';
+  const m=a.length, n=b.length;
+  if(m===0) return n; if(n===0) return m;
+  const dp = Array.from({length:m+1}, ()=> new Array(n+1));
+  for(let i=0;i<=m;i++) dp[i][0]=i;
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost = a[i-1]===b[j-1]?0:1;
+      dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+// similarity combining token overlap and normalized levenshtein
+function similarity(a,b){
+  a = norm(a); b = norm(b);
+  if(!a || !b) return 0;
+  if(a===b) return 1;
+  const aT=a.split(' '), bT=b.split(' ');
+  const bSet=new Set(bT);
+  let common=0; for(const t of aT) if(bSet.has(t)) common++;
+  const tokenOverlap = common / Math.max(aT.length, bT.length);
+  const maxLen = Math.max(a.length, b.length);
+  const lev = levenshtein(a,b);
+  const levScore = 1 - (lev / Math.max(1, maxLen));
+  // weight more on precise match: require reasonably high levScore but allow tokenOverlap to help
+  return Math.max(tokenOverlap, levScore*0.95);
+}
+
+/* ========= Story / Anomaly pools =========
+   Design:
+   - We have a pool of subtle anomaly definitions.
+   - Each anomaly has id, short canonical phrase (for checking), and a subtle sentence variant used to insert into paragraph text.
+   - Randomly assign anomalies to paragraph slots for each playthrough.
+*/
+
+const anomalyPool = [
+  // very subtle / hard-to-spot anomalies (wording designed to blend with normal text)
+  {id:'pavement_hairline', canon:['pavement cracked','hairline crack'], textVariant:'I noticed a hairline on the pavement near the curb.'},
+  {id:'window_tilt', canon:['window tilted','tilted window'], textVariant:'One window down the road caught the light at a slightly odd angle.'},
+  {id:'swing_clink', canon:['chains clink','swing chains clink'], textVariant:'The swings were still; the chains made a soft, distant clink.'},
+  {id:'shadows_long', canon:['shadows long','shadows stretched'], textVariant:'Shadows lay across the road in a way that didn’t quite match the sun.'},
+  {id:'dog_echo', canon:['dog echoed','dog bark echoed'], textVariant:'A dog barked and the echo seemed to hang, coming late.'},
+  {id:'lamp_hum', canon:['lamppost hummed','lamp hummed'], textVariant:'A lamppost gave off a low hum even though the day was bright.'},
+  {id:'paint_shapes', canon:['shapes under paint','shapes shifting under paint'], textVariant:'I thought the paint on the wall moved when I blinked.'},
+  {id:'curtain_face', canon:['face behind curtain','face in window'], textVariant:'A curtain fluttered and for a blink a face lingered behind it.'},
+  {id:'postbox_rattle', canon:['postbox rattled','postbox rattling'], textVariant:'The postbox gave a soft rattle as I walked by, though no wind ran.'},
+  {id:'puddle_orange', canon:['puddles orange','puddle reflected orange'], textVariant:'A puddle held a faint orange tone I couldn’t place beneath the sky.'},
+  {id:'crumbs_twitch', canon:['crumbs twitch','crumbs on sleeve twitch'], textVariant:'A crumb on my sleeve caught and seemed to twitch at the edge of my sight.'},
+  {id:'crow_watch', canon:['crow watched','crow tilted head'], textVariant:'The crow watched me; its head tilted with a practiced patience.'},
+  {id:'poster_breathe', canon:['poster breathing','poster moved'], textVariant:'A poster on a wall settled oddly, like it drew a slow breath.'},
+  {id:'kettle_click', canon:['kettle clicked','kettle clicked by itself'], textVariant:'A kettle clicked from a flat and then fell quiet, though no one stirred.'},
+  {id:'walls_hum', canon:['walls humming','humming walls'], textVariant:'A faint humming seemed to come through the walls, under everything.'},
+  {id:'street_stretch', canon:['street stretched','road seemed longer'], textVariant:'The road felt longer than it should, as if measured wrong.'},
+  {id:'crow_heartbeat', canon:['crow heartbeat','crow rhythm'], textVariant:'The crow called in a rhythm that matched my heart for a moment.'},
+  {id:'reflection_lag', canon:['reflection blinked late','reflection delayed blink'], textVariant:'The window-returned me a beat after I moved, slightly delayed.'}
 ];
 
-let current=0;
-let missed={};
-let baseTime=60; // seconds
-let timerInterval;
+// paragraphs templates per round (each item is an array of 3 paragraph templates; anomaly will be injected)
+const roundParagraphTemplates = [
+  [
+    "I left the flat and walked down the road. The day felt the same as always. A pane of glass caught the sunlight.",
+    "Terraced roofs glinted. Neighbours moved about in small, ordinary ways. A child’s bicycle lay against a wall.",
+    "I cut through the small park. The path smelled of wet grass and dust. Someone had left a paper cup by the bench."
+  ],
+  [
+    "The street ran on. Delivery vans drifted past at a polite distance. A lamppost stood at the corner, unremarkable.",
+    "Shadows lay across the paving, long and folded underfoot. A dog barked faintly — somewhere out of sight.",
+    "A narrow lane opened between two houses. Paint flaked on the walls and old adverts peeled at the edges."
+  ],
+  [
+    "Shops had their shutters half-lowered. The bell above one door chimed when someone passed. A poster hung at the window.",
+    "Curtains turned in the breeze inside some rooms. A face was only ever a suggestion in those windows.",
+    "A crow crossed the roofs, quiet as a little thought. Its wing beat was slow, deliberate."
+  ],
+  [
+    "A postbox sat on its stump. Coins tinkled in my pocket as I walked. A neighbour hung a coat on the line.",
+    "Puddles held the sky and the roofs. In one, colour sat differently, a tone that didn't quite belong.",
+    "The flats leaned in rows. Doors were shut, numbers chalked on bricks. Somewhere a kettle clicked."
+  ],
+  [
+    "Late light warmed the bricks. The cricket pitch was empty, the stumps leaning, a net sagging.",
+    "The alley smelled faintly of toast and rain. I paused at a window, seeing dust in the light.",
+    "Night fell slowly. The road narrowed into shadow. I felt watched for a moment and went home."
+  ]
+];
 
-// --- Show Round ---
-function showRound(){
-  const round=rounds[current];
-  let storyText=round.text;
-  // Amplify missed oddities
-  for(const odd in missed){
-    if(missed[odd]>=2 && !storyText.includes(odd)){
-      storyText+="\n\nThe "+odd+" returns, more insistent this time.";
-    }
-  }
-  document.getElementById("story").innerText=storyText;
-  document.getElementById("odditiesInput").value="";
-  document.getElementById("feedback").innerText="";
-  document.getElementById("nextBtn").style.display="none";
-  document.getElementById("submitBtn").style.display="inline-block";
-  startTimer(baseTime);
-}
+// configuration
+const TOTAL_ROUNDS = 5;
+const PARAGRAPHS_PER_ROUND = 3;
+const MAX_ANOMALIES_PER_ROUND = 3;
+let baseTime = 30; // starting seconds
+const MIN_TIME = 8; // minimum seconds
+const TIME_PENALTY = 3; // seconds removed per miss
+const MATCH_THRESHOLD = 0.72; // higher = must be precise
 
-// --- Timer ---
-function startTimer(seconds){
-  clearInterval(timerInterval);
-  let time=seconds;
-  document.getElementById("timer").innerText="Time: "+time+"s";
-  timerInterval=setInterval(()=>{
-    time--;
-    document.getElementById("timer").innerText="Time: "+time+"s";
-    if(time<=0){
-      clearInterval(timerInterval);
-      endRound(true); // timed out
-    }
-  },1000);
-}
-
-// --- Fake AI grading ---
-function fakeAIGrade(answers, correct){
-  answers=answers.toLowerCase();
-  let missedList=[];
-  correct.forEach(o=>{
-    if(!answers.includes(o.split(" ")[0])){
-      missedList.push(o);
-      missed[o]=(missed[o]||0)+1;
-      baseTime=Math.max(10, baseTime-2); // reduce time for next round
-    } else { missed[o]=0; }
-  });
-  if(missedList.length===0) return "Perfect — you spotted everything.";
-  return "You missed: "+missedList.join(", ");
-}
-
-// --- End Round ---
-function endRound(timedOut=false){
-  clearInterval(timerInterval);
-  const round=rounds[current];
-  const answers=document.getElementById("odditiesInput").value;
-  const result=timedOut ? "Time ran out!" : fakeAIGrade(answers,round.oddities);
-  document.getElementById("feedback").innerText=result;
-  document.getElementById("submitBtn").style.display="none";
-  document.getElementById("nextBtn").style.display="inline-block";
-}
-
-// --- Event Listeners ---
-document.getElementById("submitBtn").onclick=()=>{ endRound(false); };
-
-document.getElementById("nextBtn").onclick=()=>{
-  current++;
-  if(current>=rounds.length){
-    showEndScreen();
-  } else showRound();
+/* ========= runtime state ========= */
+let playState = {
+  assigned: [],      // assigned anomalies per round: [[id or null,...], ...]
+  roundTexts: [],    // fully built round text with inserted anomalies/amplifications
+  currentRound: 0,
+  missCounts: {},    // missCounts[id] = times missed
+  totalMissed: 0,
+  timeLeft: baseTime,
+  timerInterval: null
 };
 
-// --- Custom End Screen ---
-function showEndScreen(){
-  document.getElementById("story").innerText="";
-  document.getElementById("odditiesInput").style.display="none";
-  document.getElementById("submitBtn").style.display="none";
-  document.getElementById("nextBtn").style.display="none";
-  clearInterval(timerInterval);
-
-  let missedCount=Object.values(missed).reduce((a,b)=>a+b,0);
-  let msg="";
-  if(missedCount===0){
-    msg="You walked the streets carefully. Nothing could surprise you. You survived.";
-  } else if(missedCount<=3){
-    msg="Some things slipped by unnoticed. They linger in the corners, watching.";
-  } else{
-    msg="The missed oddities have consumed your world. Shadows move where they shouldn’t. You are part of the streets now.";
+/* ========= helper: pick random unique anomalies for playthrough ========= */
+function pickRandomAnomalies(){
+  // copy pool
+  const pool = anomalyPool.slice();
+  // shuffle
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
   }
-  document.getElementById("story").innerText=msg;
-  document.getElementById("timer").innerText="";
-  document.getElementById("feedback").innerText="";
+  // We'll assign up to MAX_ANOMALIES_PER_ROUND anomalies per round, one per paragraph, but randomized
+  const assigned = [];
+  let poolIndex = 0;
+  for(let r=0;r<TOTAL_ROUNDS;r++){
+    const roundAssign = new Array(PARAGRAPHS_PER_ROUND).fill(null);
+    // choose how many anomalies this round gets: 0..MAX_ANOMALIES_PER_ROUND but ensure some variability
+    const count = Math.min(MAX_ANOMALIES_PER_ROUND, Math.max(1, Math.round(Math.random()*MAX_ANOMALIES_PER_ROUND)));
+    // select 'count' distinct paragraph slots
+    const slots = [];
+    while(slots.length < count){
+      const s = Math.floor(Math.random()*PARAGRAPHS_PER_ROUND);
+      if(!slots.includes(s)) slots.push(s);
+    }
+    // assign next anomalies from pool
+    for(const s of slots){
+      if(poolIndex >= pool.length) poolIndex = 0; // wrap if pool small
+      roundAssign[s] = pool[poolIndex].id;
+      poolIndex++;
+    }
+    assigned.push(roundAssign);
+  }
+  return assigned;
 }
 
-// --- Start ---
-showRound();
-</script>
-</body>
-</html>
+/* ========= Build round texts with anomaly insertion and amplification messages ========= */
+function buildRoundTexts(assigned){
+  const texts = [];
+  for(let r=0;r<TOTAL_ROUNDS;r++){
+    const paragraphs = roundParagraphTemplates[r].slice(); // copy
+    const roundAssign = assigned[r];
+    // insert anomaly subtle text variants into the chosen paragraph (append a sentence softly)
+    for(let p=0;p<PARAGRAPHS_PER_ROUND;p++){
+      const aid = roundAssign[p];
+      if(aid){
+        const anomaly = anomalyPool.find(a => a.id===aid);
+        if(anomaly){
+          // place variant appended but blended
+          paragraphs[p] = paragraphs[p] + ' ' + anomaly.textVariant;
+        }
+      }
+    }
+    texts.push(paragraphs.join('\n\n'));
+  }
+  return texts;
+}
 
+/* ========= UI helpers ========= */
+const startBtn = document.getElementById('startBtn');
+const startScreen = document.getElementById('startScreen');
+const gameScreen = document.getElementById('gameScreen');
+const endScreen = document.getElementById('endScreen');
+const storyEl = document.getElementById('story');
+const roundLabel = document.getElementById('roundLabel');
+const titleEl = document.getElementById('title');
+const timerText = document.getElementById('timerText');
+const timerFill = document.getElementById('timerFill');
+const answerInput = document.getElementById('answerInput');
+const submitBtn = document.getElementById('submitBtn');
+const nextBtn = document.getElementById('nextBtn');
+const feedbackEl = document.getElementById('feedback');
+const missCountEl = document.getElementById('missCount');
+const minTimeDisplay = document.getElementById('minTimeDisplay');
+const timerBar = document.getElementById('timerBar');
+const restartBtn = document.getElementById('restartBtn');
+const endTitle = document.getElementById('endTitle');
+const endSub = document.getElementById('endSub');
+const endBody = document.getElementById('endBody');
+
+/* ========= Game flow functions ========= */
+
+function startGame(){
+  // reset state
+  playState.currentRound = 0;
+  playState.missCounts = {};
+  playState.totalMissed = 0;
+  baseTime = 30;
+  playState.timeLeft = baseTime;
+  // choose anomalies randomly for this playthrough
+  const assigned = pickRandomAnomalies();
+  playState.assigned = assigned;
+  playState.roundTexts = buildRoundTexts(assigned);
+  // show game screen
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+  // present first round
+  showRound(0);
+}
+
+function showRound(index){
+  const r = index;
+  if(r >= TOTAL_ROUNDS){
+    endGame();
+    return;
+  }
+  playState.currentRound = r;
+  roundLabel.textContent = `Round ${r+1} / ${TOTAL_ROUNDS}`;
+  // build text including any amplifications for previously missed anomalies
+  let text = playState.roundTexts[r];
+  // amplify missed anomalies only if missCounts >=2 and not already in text
+  for(const aid in playState.missCounts){
+    const m = playState.missCounts[aid];
+    if(m >= 2){
+      // find canonical description to append in a subtle way
+      const def = anomalyPool.find(x => x.id === aid);
+      if(def && text.indexOf(def.textVariant) === -1){
+        text += '\n\n' + 'At the edge of the paragraphs, something familiar reappeared: ' + def.textVariant.replace(/^[A-Z]/, def.textVariant[0]);
+      }
+    }
+  }
+  storyEl.textContent = text;
+  feedbackEl.textContent = '';
+  answerInput.value = '';
+  answerInput.disabled = false;
+  submitBtn.disabled = false;
+  nextBtn.classList.add('hidden');
+
+  // set timer
+  playState.timeLeft = baseTime;
+  updateTimerUI();
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(playState.timerInterval);
+  playState.timerInterval = setInterval(()=>{
+    playState.timeLeft--;
+    updateTimerUI();
+    if(playState.timeLeft <= 0){
+      clearInterval(playState.timerInterval);
+      // time out -> assume all anomalies for this round are missed
+      handleTimeoutForRound(playState.currentRound);
+    }
+  }, 1000);
+}
+
+function updateTimerUI(){
+  timerText.textContent = `Time: ${playState.timeLeft}s`;
+  const pct = Math.max(0, Math.min(1, playState.timeLeft / baseTime));
+  timerFill.style.width = `${Math.round(pct*100)}%`;
+  // adjust color subtly when low
+  if(playState.timeLeft <= 6) timerFill.style.filter = 'hue-rotate(25deg) saturate(0.9)';
+  else timerFill.style.filter = 'none';
+  missCountEl.textContent = playState.totalMissed;
+  minTimeDisplay.textContent = MIN_TIME;
+}
+
+function handleTimeoutForRound(roundIdx){
+  // mark all anomalies in that round as missed
+  const assigned = playState.assigned[roundIdx];
+  let newlyMissed = [];
+  for(let p=0;p<PARAGRAPHS_PER_ROUND;p++){
+    const aid = assigned[p];
+    if(aid){
+      playState.missCounts[aid] = (playState.missCounts[aid] || 0) + 1;
+      playState.totalMissed++;
+      newlyMissed.push(aid);
+      // reduce base time
+      baseTime = Math.max(MIN_TIME, baseTime - TIME_PENALTY);
+    }
+  }
+  feedbackEl.innerHTML = `<span class="missed">Time ran out — you missed ${newlyMissed.length} anomaly(ies).</span>`;
+  // lock input and show Next
+  answerInput.disabled = true;
+  submitBtn.disabled = true;
+  nextBtn.classList.remove('hidden');
+}
+
+function gradeAnswersForRound(){
+  const text = answerInput.value;
+  const assigned = playState.assigned[playState.currentRound];
+  const roundDefs = []; // list of objects: {aid, canonicalPhrases}
+  for(let p=0;p<PARAGRAPHS_PER_ROUND;p++){
+    const aid = assigned[p];
+    if(aid){
+      const def = anomalyPool.find(a => a.id===aid);
+      if(def) roundDefs.push({aid:aid, phrases:def.canon});
+    }
+  }
+
+  const found = [];
+  const missed = [];
+  const userParts = text.split(',').map(s => norm(s)).filter(Boolean);
+
+  // attempt matching each anomaly: check best similarity across canonical phrases and across userParts
+  for(const def of roundDefs){
+    let best = 0;
+    let bestUser = null;
+    for(const up of userParts){
+      for(const phrase of def.phrases){
+        const sim = similarity(up, phrase);
+        if(sim > best){ best = sim; bestUser = up; }
+      }
+    }
+    if(best >= MATCH_THRESHOLD){
+      found.push({aid:def.aid, match:bestUser, score:best});
+      // reset miss count
+      playState.missCounts[def.aid] = 0;
+    } else {
+      missed.push(def.aid);
+      playState.missCounts[def.aid] = (playState.missCounts[def.aid] || 0) + 1;
+      playState.totalMissed++;
+      baseTime = Math.max(MIN_TIME, baseTime - TIME_PENALTY);
+    }
+  }
+
+  // Build feedback message
+  const foundNames = found.map(f => {
+    const def = anomalyPool.find(a=>a.id===f.aid);
+    return def ? def.canon[0] : f.aid;
+  });
+  const missedNames = missed.map(id => {
+    const def = anomalyPool.find(a=>a.id===id);
+    return def ? def.canon[0] : id;
+  });
+
+  let msg = '';
+  if(foundNames.length) msg += `<span class="found">Spotted: ${foundNames.join(', ')}</span>`;
+  if(missedNames.length){
+    if(msg) msg += 
