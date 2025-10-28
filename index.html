@@ -27,14 +27,14 @@ button:hover { background:#777; }
 </head>
 <body>
 <div id="game">
-  <!-- ---------- START SCREEN ---------- -->
+  <!-- START SCREEN -->
   <div id="startScreen">
     <h1>Dust Days</h1>
     <p style="text-align:center;">The day begins like any other.<br>It will not stay that way.</p>
     <div style="text-align:center;"><button id="startBtn">Start</button></div>
   </div>
 
-  <!-- ---------- PLAY AREA ---------- -->
+  <!-- PLAY AREA -->
   <div id="playArea" class="hidden">
     <div id="timer">Time: 30s</div>
     <div id="story"></div>
@@ -46,7 +46,7 @@ button:hover { background:#777; }
     <p id="feedback"></p>
   </div>
 
-  <!-- ---------- END SCREEN ---------- -->
+  <!-- END SCREEN -->
   <div id="endScreen" class="hidden">
     <h2 id="endingTitle" style="text-align:center;"></h2>
     <p id="endingText" style="white-space:pre-line; text-align:center;"></p>
@@ -57,7 +57,7 @@ button:hover { background:#777; }
 </div>
 
 <script>
-// ----- SYNONYM MAP -----
+// ----- SYNONYMS -----
 const synonyms = {
   crow: ["bird","raven","blackbird"],
   lamppost: ["lamp","streetlight","light"],
@@ -69,7 +69,7 @@ const synonyms = {
   door: ["entrance","shopdoor"]
 };
 
-// ----- BASE STORY (fixed) -----
+// ----- BASE STORY -----
 const baseStory = [
   "The kettle clicked off just as I stepped away. I looked in the cupboard. No bread. I’d have to go out.",
   "The pavement outside was cracked and dusty. The same cracks as yesterday, maybe deeper.",
@@ -83,7 +83,7 @@ const baseStory = [
   "Back on the road, a bin bag twitched once, then went still."
 ];
 
-// Each paragraph has possible anomalies
+// Possible anomalies for each paragraph
 const anomaliesPool = [
   ["pavement cracked"],
   ["lamppost humming"],
@@ -96,7 +96,7 @@ const anomaliesPool = [
   ["bag twitched"]
 ];
 
-let rounds=[]; let missed={}; let current=0; let baseTime=30; let timerInterval;
+let rounds=[], missed={}, current=0, baseTime=30, timerInterval;
 
 // ----- START GAME -----
 function startGame(){
@@ -104,76 +104,81 @@ function startGame(){
   document.getElementById("endScreen").classList.add("hidden");
   document.getElementById("playArea").classList.remove("hidden");
 
-  // choose up to 3 random anomalies for each of 5 sections
   rounds = [];
   for(let i=0;i<5;i++){
-    const sectionParas = baseStory.slice(i*2, i*2+2).join("\n\n");
-    const randomAnoms = shuffle([...anomaliesPool]).slice(0,Math.floor(Math.random()*3)+1);
-    rounds.push({text:sectionParas, oddities:randomAnoms.map(a=>a[0])});
+    // two paragraphs per round
+    const paras = baseStory.slice(i*2, i*2+2).join("\n\n");
+    const randomAnoms = shuffle([...anomaliesPool]).slice(0, Math.min(3, anomaliesPool.length));
+    rounds.push({
+      text: paras,
+      oddities: randomAnoms.map(a=>a[0])
+    });
   }
-  current=0; missed={}; baseTime=30;
+
+  current = 0; missed = {}; baseTime = 30;
   showRound();
 }
 
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
-// ----- DISPLAY ROUND -----
+// ----- SHOW ROUND -----
 function showRound(){
-  const round=rounds[current];
-  let storyText=round.text;
+  const round = rounds[current];
 
-  for(const odd in missed){
-    if(missed[odd]>=2 && !storyText.includes(odd)){
-      storyText += `\n\nThe ${odd} again, closer this time.`;
-    }
-  }
+  // pick displayed anomalies
+  round.displayedOddities = shuffle([...round.oddities]);
 
-  document.getElementById("story").innerText=storyText;
-  document.getElementById("odditiesInput").value="";
-  document.getElementById("feedback").innerText="";
+  document.getElementById("story").innerText = round.text;
+  document.getElementById("odditiesInput").value = "";
+  document.getElementById("feedback").innerText = "";
   document.getElementById("nextBtn").classList.add("hidden");
   document.getElementById("submitBtn").classList.remove("hidden");
+
   startTimer(baseTime);
 }
 
 // ----- TIMER -----
 function startTimer(seconds){
   clearInterval(timerInterval);
-  let time=seconds;
-  document.getElementById("timer").innerText="Time: "+time+"s";
-  timerInterval=setInterval(()=>{
+  let time = seconds;
+  document.getElementById("timer").innerText = "Time: " + time + "s";
+  timerInterval = setInterval(()=>{
     time--;
-    document.getElementById("timer").innerText="Time: "+time+"s";
+    document.getElementById("timer").innerText = "Time: " + time + "s";
     if(time<=0){
       clearInterval(timerInterval);
-      const round=rounds[current];
-      round.oddities.forEach(o=>{
-        missed[o]=(missed[o]||0)+1;
-        baseTime=Math.max(10,baseTime-2);
+      const round = rounds[current];
+      round.displayedOddities.forEach(o=>{
+        missed[o] = (missed[o]||0)+1;
+        baseTime = Math.max(10, baseTime-2);
       });
-      document.getElementById("feedback").innerText="You waited too long. Everything kept moving.";
+      document.getElementById("feedback").innerText="You hesitated too long. The world moved without you.";
       endRound();
     }
   },1000);
 }
 
 // ----- GRADING -----
-function fakeAIGrade(answers, correct){
-  answers=answers.toLowerCase();
-  let missedList=[];
-  correct.forEach(o=>{
-    const words=o.toLowerCase().split(" ");
-    const extra=(synonyms[words[0]]||[]);
-    const all=[...words,...extra];
-    const match=all.some(word=>answers.includes(word));
+function fakeAIGrade(answers, round){
+  answers = answers.toLowerCase();
+  let missedList = [];
+
+  round.displayedOddities.forEach(o=>{
+    const words = o.toLowerCase().split(" ");
+    const extra = synonyms[words[0]]||[];
+    const all = [...words, ...extra];
+    const match = all.some(word => answers.includes(word));
     if(!match){
       missedList.push(o);
-      missed[o]=(missed[o]||0)+1;
-      baseTime=Math.max(10,baseTime-2);
-    } else { missed[o]=0; }
+      missed[o] = (missed[o]||0)+1;
+      baseTime = Math.max(10, baseTime-2);
+    } else {
+      missed[o] = 0;
+    }
   });
+
   if(missedList.length===0) return "You saw it all. Nothing slipped by.";
-  return "You missed: "+missedList.join(", ");
+  return "You missed: " + missedList.join(", ");
 }
 
 // ----- END ROUND -----
@@ -183,18 +188,19 @@ function endRound(){
   document.getElementById("nextBtn").classList.remove("hidden");
 }
 
-document.getElementById("submitBtn").onclick=()=>{
+// ----- BUTTONS -----
+document.getElementById("submitBtn").onclick = ()=>{
   clearInterval(timerInterval);
-  const answers=document.getElementById("odditiesInput").value;
-  const round=rounds[current];
-  const result=fakeAIGrade(answers,round.oddities);
-  document.getElementById("feedback").innerText=result;
+  const answers = document.getElementById("odditiesInput").value;
+  const round = rounds[current];
+  const result = fakeAIGrade(answers, round);
+  document.getElementById("feedback").innerText = result;
   endRound();
 };
 
-document.getElementById("nextBtn").onclick=()=>{
+document.getElementById("nextBtn").onclick = ()=>{
   current++;
-  if(current>=rounds.length){ showEndScreen(); }
+  if(current>=rounds.length) showEndScreen();
   else showRound();
 };
 
@@ -204,8 +210,8 @@ function showEndScreen(){
   document.getElementById("playArea").classList.add("hidden");
   document.getElementById("endScreen").classList.remove("hidden");
 
-  const missedCount=Object.values(missed).reduce((a,b)=>a+b,0);
-  let title="",text="";
+  const missedCount = Object.values(missed).reduce((a,b)=>a+b,0);
+  let title="", text="";
   if(missedCount===0){
     title="You Passed Unseen.";
     text="The road straightens. The air is still.\nFor now, you are alone.";
@@ -220,15 +226,12 @@ function showEndScreen(){
   document.getElementById("endingText").innerText=text;
 }
 
-// ----- RESTART -----
-document.getElementById("restartBtn").onclick=()=>{
+document.getElementById("restartBtn").onclick = ()=>{
   document.getElementById("endScreen").classList.add("hidden");
   document.getElementById("startScreen").classList.remove("hidden");
 };
 
-// ----- START BUTTON -----
 document.getElementById("startBtn").onclick=startGame;
 </script>
 </body>
   </html>
-  
