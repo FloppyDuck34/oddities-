@@ -3,293 +3,196 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dust Days: Overwhelmed</title>
+<title>Drawn Panorama Anomalies</title>
 <style>
-body {margin:0;background:#111;color:#eee;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;}
-#game {width:90%; max-width:900px; background:#222; padding:20px; border-radius:10px;}
-h1{text-align:center; letter-spacing:2px;margin-bottom:15px;}
-#story{white-space:pre-line;margin-bottom:15px;min-height:400px;line-height:1.6;}
-#odditiesInput{width:100%;padding:10px;border:none;border-radius:5px;margin-bottom:10px;}
-button{padding:10px 20px;border:none;border-radius:5px;background:#555;color:#fff;cursor:pointer;margin-right:5px;}
-button:hover{background:#777;}
-#feedback{color:#f66;font-weight:bold;text-align:center;margin-top:10px;}
-#timer{color:#ffcc00;font-weight:bold;text-align:center;margin-bottom:10px;}
-.hidden{display:none;}
+  body { margin:0; font-family:sans-serif; }
+  #container { overflow-x: scroll; width:100vw; border-bottom:2px solid black; }
+  canvas { display:block; background:#f0f0f0; }
+  #controls { padding:10px; }
+  button { padding:8px 16px; margin:5px; }
 </style>
 </head>
 <body>
-<div id="game">
 
-<!-- START SCREEN -->
-<div id="startScreen">
-<h1>Dust Days</h1>
-<p style="text-align:center;">The day begins like any other.<br>It will not stay that way.</p>
-<div style="text-align:center;"><button id="startBtn">Start</button></div>
+<div id="container">
+  <canvas id="panorama" width="3000" height="400"></canvas>
 </div>
 
-<!-- PLAY AREA -->
-<div id="playArea" class="hidden">
-<div id="timer">Time: 180s</div>
-<div id="story"></div>
-<input id="odditiesInput" placeholder="What seemed off?">
-<div style="text-align:center;">
-<button id="submitBtn">Submit</button>
-<button id="nextBtn" class="hidden">Next</button>
-</div>
-<p id="feedback"></p>
-</div>
-
-<!-- END SCREEN -->
-<div id="endScreen" class="hidden">
-<h2 id="endingTitle" style="text-align:center;"></h2>
-<p id="endingText" style="white-space:pre-line; text-align:center;"></p>
-<div style="text-align:center;">
-<button id="restartBtn">Restart</button>
-</div>
-</div>
+<div id="controls">
+  <button id="startBtn">Start Round</button>
+  <button id="nextRoundBtn">Next Round</button>
+  <p id="feedback">Click "Start Round" to begin.</p>
 </div>
 
 <script>
-// SYNONYMS FOR WIDE ANSWER CHECK
-const synonyms = {
-  crow:["bird","raven","blackbird"],
-  lamppost:["lamp","streetlight","light"],
-  swing:["chains","seat","playground"],
-  pavement:["road","path","sidewalk"],
-  reflection:["mirror","glass","window"],
-  bag:["bin","rubbish","plastic"],
-  curtain:["drape","window"],
-  door:["entrance","shopdoor"]
-};
+const canvas = document.getElementById('panorama');
+const ctx = canvas.getContext('2d');
+let anomalies = [];
+let activeAnomalies = [];
+let found = [];
 
-// STORY PARAGRAPHS WITH SUBTLE ANOMALIES
-const storyParagraphs = [
-  { text:"The kettle clicked off just as I stepped away. Steam swirled lazily above the rim. The cupboard stared back at me, empty yet somehow expectant. Outside, the road shimmered with morning dust, and a distant hum ran through the air.", oddities:[] },
-  { text:"The pavement outside was cracked and dusty, a network of faint fissures like veins. Shadows leaned over them, stretching unnaturally with the sun. I walked slowly, noticing a small ripple in the concrete that had not been there yesterday.", oddities:["pavement rippled"] },
-  { text:"At the junction a lamppost leaned a little, humming softly, as if it remembered some tune. A bird perched atop, staring longer than any bird should. Its shadow flickered oddly on the road, twitching out of sync with the movement of leaves.", oddities:["lamppost humming","bird stared too long"] },
-  { text:"I passed the small park. The swings were still, though a chain whispered once when the wind touched it. The benches sagged faintly, and the grass smelled faintly of dust and something sour beneath. A shadow moved behind the trees, just at the edge of vision.", oddities:["swing chain whispered","shadow behind trees"] },
-  { text:"A crow watched from the fence as I crossed toward the bakery. Its black eyes glinted unnaturally. The wooden fence warped slightly, creaking a note that was almost a word. The air felt heavier here, like breathing through thick cloth.", oddities:["crow stared too long","fence warped"] },
-  { text:"The door to the shop resisted before opening. A soft click echoed even after it swung back. The smell of flour hit first, then something else lingered beneath it, sweet and bitter at once. My reflection in the glass seemed a half-second behind my movement.", oddities:["door resisted","reflection lagged"] },
-  { text:"The shelves looked full but light somehow. Loaves sat upright, crusts gleaming unnaturally. A coin rolled under the counter though no one had touched it. I wondered if the light itself was thinner here, diffused oddly, slipping through the gaps.", oddities:["shelves hollow","coin rolled alone"] },
-  { text:"Back on the road, a bin bag twitched once, then went still. The lamppost hummed again. A leaf drifted upward against the wind, lingering in the air longer than it should. My shoes scuffed the dust, but no mark remained behind me.", oddities:["bag twitched","leaf lingered"] }
+// DRAW BASE PANORAMA (hand-drawn style)
+function drawBase() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // sky (gradient)
+  let sky = ctx.createLinearGradient(0,0,0,400);
+  sky.addColorStop(0,'#b0d8f0');
+  sky.addColorStop(1,'#e0f4f8');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // ground (textured brush style)
+  ctx.fillStyle = '#c2b280';
+  for(let y=300; y<400; y++){
+    for(let x=0;x<canvas.width;x+=3){
+      ctx.fillRect(x + Math.random()*2, y + Math.random()*1.5, 2, 2);
+    }
+  }
+
+  // rocks (hand-drawn style)
+  drawRock(200,280,40,20);
+  drawRock(800,280,30,15);
+  drawRock(1500,280,50,25);
+
+  // lampposts (sketch style)
+  for(let x=500;x<canvas.width;x+=600){
+    drawLamppost(x,220,10,80);
+  }
+
+  // bakery building
+  drawBakery(1200,200,150,100);
+}
+
+// Draw rock function
+function drawRock(x,y,w,h){
+  ctx.fillStyle='#888';
+  ctx.beginPath();
+  ctx.moveTo(x,y+h);
+  ctx.quadraticCurveTo(x+w/2,y,x+w,y+h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Draw lamppost
+function drawLamppost(x,y,w,h){
+  ctx.fillStyle='#444';
+  ctx.fillRect(x,y,w,h);
+  ctx.beginPath();
+  ctx.arc(x+w/2,y,10,0,Math.PI*2);
+  ctx.fill();
+}
+
+// Draw bakery
+function drawBakery(x,y,w,h){
+  ctx.fillStyle='#d9a066';
+  ctx.fillRect(x,y,w,h);
+  ctx.fillStyle='#a0522d';
+  ctx.fillRect(x+w/4,y+h/2,w/2,h/2); // door
+}
+
+// DRAW ANOMALIES (hand-drawn style)
+function drawAnomalies(){
+  anomalies.forEach(a=>{
+    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
+      a.draw(ctx);
+    }
+  });
+}
+
+// DEFINE ANOMALIES
+// Each anomaly has its own draw function for realism
+anomalies = [
+  {
+    id:1, x:820, y:280, width:30, height:15, 
+    draw: (ctx)=>{ // rock shadow mismatch
+      ctx.fillStyle='rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(820+15, 280+15, 30, 8, Math.PI/4, 0, 2*Math.PI);
+      ctx.fill();
+    }
+  },
+  {
+    id:2, x:1520, y:280, width:50, height:25,
+    draw: (ctx)=>{ // floating rock
+      ctx.fillStyle='rgba(100,100,100,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(1520,280+25);
+      ctx.quadraticCurveTo(1520+25,280-5,1520+50,280+25);
+      ctx.fill();
+    }
+  },
+  {
+    id:3, x:600, y:220, width:10, height:80,
+    draw: (ctx)=>{ // tilted lamppost
+      ctx.fillStyle='rgba(68,68,68,0.6)';
+      ctx.save();
+      ctx.translate(600,220);
+      ctx.rotate(Math.PI/18);
+      ctx.fillRect(0,0,10,80);
+      ctx.restore();
+    }
+  }
 ];
 
-// GAME VARIABLES
-let rounds=[], missed={}, current=0, baseTime=30, timerInterval, overallTime=180, overallInterval;
+// RENDER
+function render(){
+  drawBase();
+  drawAnomalies();
+}
 
-// SHUFFLE HELPER
-function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+// START ROUND
+function startRound(){
+  found=[];
+  activeAnomalies=[];
+  anomalies.forEach(a=>{
+    if(Math.random()<0.5) activeAnomalies.push(a.id);
+  });
+  render();
+  document.getElementById("feedback").innerText=`Find the anomalies! Total: ${activeAnomalies.length}`;
+}
 
-// CREATE ROUNDS WITH MAX 3 SUBTLE ANOMALIES
-function createRounds() {
-  const shuffledParas = shuffle([...storyParagraphs]);
-  const rounds = [];
-  let i = 0;
-
-  while(i < shuffledParas.length){
-    let paras = [], wordCount = 0;
-    while(i < shuffledParas.length && wordCount < 200){ 
-      paras.push({...shuffledParas[i]});
-      wordCount += shuffledParas[i].text.split(" ").length;
-      i++;
+// NEXT ROUND
+function nextRound(){
+  // missed anomalies carry over
+  anomalies.forEach(a=>{
+    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
+      if(!activeAnomalies.includes(a.id)) activeAnomalies.push(a.id);
     }
+  });
+  // new anomalies may appear
+  anomalies.forEach(a=>{
+    if(!activeAnomalies.includes(a.id) && Math.random()<0.3){
+      activeAnomalies.push(a.id);
+    }
+  });
+  found=[];
+  render();
+  document.getElementById("feedback").innerText=`New round started! Total anomalies: ${activeAnomalies.length}`;
+}
 
-    // Pick up to 3 anomalies for the round (maybe fewer)
-    let allAnoms = paras.flatMap(p => p.oddities);
-    if(allAnoms.length > 0){
-      let numToPick = Math.min(3, Math.floor(Math.random() * allAnoms.length) + 1);
-      allAnoms = shuffle(allAnoms).slice(0, numToPick);
-    } else { allAnoms = []; }
-
-    let count = 0;
-
-    // Randomly assign anomalies to some paragraphs only
-    paras.forEach(p => {
-      p.displayedOddities = [];
-      if(count < allAnoms.length && p.oddities.length > 0){
-        let available = p.oddities.filter(o => allAnoms.includes(o));
-        if(available.length > 0 && Math.random() < 0.5){ // 50% chance
-          p.displayedOddities.push(available[0]);
-          count++;
-        }
+// CLICK DETECTION
+canvas.addEventListener('click',e=>{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  anomalies.forEach(a=>{
+    if(activeAnomalies.includes(a.id) && !found.includes(a.id)){
+      if(mx>=a.x && mx<=a.x+a.width && my>=a.y && my<=a.y+a.height){
+        found.push(a.id);
+        render();
+        document.getElementById("feedback").innerText=`Good! Found ${found.length} of ${activeAnomalies.length}`;
       }
-    });
-
-    rounds.push({paragraphs: paras});
-  }
-
-  return rounds;
-}
-
-// START GAME
-function startGame(){
-  document.getElementById("startScreen").classList.add("hidden");
-  document.getElementById("endScreen").classList.add("hidden");
-  document.getElementById("playArea").classList.remove("hidden");
-
-  rounds = createRounds();
-  current=0; missed={}; baseTime=30; overallTime=180;
-
-  startOverallTimer();
-  showRound();
-}
-
-// SHOW ROUND
-function showRound(){
-  const round = rounds[current];
-  let parasToShow = round.paragraphs.map(p=>p.text).join("\n\n");
-
-  // Amplify missed anomalies
-  round.paragraphs.forEach(p=>{
-    p.displayedOddities.forEach(o=>{
-      if((missed[o]||0)>0){
-        parasToShow += `\n\nA subtle echo of the ${o} flickers again.`;
-      }
-    });
-  });
-
-  round.displayedOddities = round.paragraphs.flatMap(p=>p.displayedOddities);
-
-  document.getElementById("story").innerText = parasToShow;
-  document.getElementById("odditiesInput").value="";
-  document.getElementById("feedback").innerText="";
-  document.getElementById("nextBtn").classList.add("hidden");
-  document.getElementById("submitBtn").classList.remove("hidden");
-
-  startRoundTimer(baseTime);
-}
-
-// ROUND TIMER
-function startRoundTimer(seconds){
-  clearInterval(timerInterval);
-  let time=seconds;
-  document.getElementById("timer").innerText="Time: "+overallTime+"s";
-  timerInterval=setInterval(()=>{
-    time--;
-    overallTime--;
-    document.getElementById("timer").innerText="Time: "+overallTime+"s";
-    if(time<=0){
-      clearInterval(timerInterval);
-      handleMissedRound();
-    }
-    if(overallTime<=0){
-      clearInterval(timerInterval);
-      clearInterval(overallInterval);
-      gameOver("Time ran out. The dust consumes everything in its path.");
-    }
-  },1000);
-}
-
-// OVERALL TIMER
-function startOverallTimer(){
-  clearInterval(overallInterval);
-  overallInterval=setInterval(()=>{
-    overallTime--;
-    document.getElementById("timer").innerText="Time: "+overallTime+"s";
-    if(overallTime<=0){
-      clearInterval(overallInterval);
-      gameOver("Time ran out. The dust consumes everything in its path.");
-    }
-  },1000);
-}
-
-// HANDLE MISSED ROUND
-function handleMissedRound(){
-  const round=rounds[current];
-  round.displayedOddities.forEach(o=>{
-    missed[o]=(missed[o]||0)+1;
-    baseTime=Math.max(10,baseTime-2);
-  });
-  document.getElementById("feedback").innerText="You waited too long. The world moves on without you.";
-  nextRoundOrOver();
-}
-  // AI GRADING FUNCTION
-function fakeAIGrade(answers, round){
-  answers = answers.toLowerCase();
-  const words = answers.split(/[\s,]+/);
-  let missedList = [];
-
-  // Check each anomaly
-  round.displayedOddities.forEach(o=>{
-    const oWords = o.toLowerCase().split(" ");
-    const extra = synonyms[oWords[0]]||[];
-    const all = [...oWords, ...extra];
-    const match = all.some(word => words.includes(word));
-    if(!match){
-      missedList.push(o);
-      missed[o] = (missed[o] || 0) + 1;
-      baseTime = Math.max(10, baseTime-2);
-    } else {
-      missed[o] = 0;
     }
   });
-
-  // Detect invalid inputs and amplify anomalies
-  words.forEach(w=>{
-    if(w.length===0) return;
-    let isValid=false;
-    round.displayedOddities.forEach(o=>{
-      const oWords = o.toLowerCase().split(" ");
-      const extra = synonyms[oWords[0]]||[];
-      const all = [...oWords, ...extra];
-      if(all.includes(w)) isValid=true;
-    });
-    if(!isValid){
-      // Amplify subtle anomalies by adding one random anomaly per paragraph
-      round.paragraphs.forEach(p=>{
-        const extras = shuffle(p.oddities).slice(0,1);
-        extras.forEach(e=>{
-          if(!p.displayedOddities.includes(e)) p.displayedOddities.push(e);
-        });
-      });
-    }
-  });
-
-  return missedList;
-}
-
-// HANDLE NEXT ROUND OR END
-function nextRoundOrOver(){
-  current++;
-  if(current >= rounds.length){
-    gameOver("You reached the end. The dust waits anyway.");
-  } else {
-    document.getElementById("nextBtn").classList.remove("hidden");
-    document.getElementById("submitBtn").classList.add("hidden");
-  }
-}
-
-// GAME OVER
-function gameOver(message){
-  clearInterval(timerInterval);
-  clearInterval(overallInterval);
-  document.getElementById("playArea").classList.add("hidden");
-  document.getElementById("endScreen").classList.remove("hidden");
-  document.getElementById("endingTitle").innerText = "The Dust Wins";
-  document.getElementById("endingText").innerText = message + "\n\nYou can try again.";
-}
-
-// EVENT LISTENERS
-document.getElementById("startBtn").addEventListener("click",startGame);
-document.getElementById("nextBtn").addEventListener("click",()=>{
-  showRound();
 });
-document.getElementById("restartBtn").addEventListener("click",startGame);
 
-document.getElementById("submitBtn").addEventListener("click",()=>{
-  const input = document.getElementById("odditiesInput").value;
-  const round = rounds[current];
-  const missedAnomalies = fakeAIGrade(input, round);
+// BUTTONS
+document.getElementById("startBtn").addEventListener("click",startRound);
+document.getElementById("nextRoundBtn").addEventListener("click",nextRound);
 
-  if(missedAnomalies.length===0){
-    document.getElementById("feedback").innerText="You spotted all anomalies!";
-  } else {
-    document.getElementById("feedback").innerText="Some oddities remain unseen...";
-  }
-
-  clearInterval(timerInterval);
-  nextRoundOrOver();
-});
+render();
 </script>
+
 </body>
 </html>
