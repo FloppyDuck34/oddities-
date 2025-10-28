@@ -80,38 +80,40 @@ let rounds=[], missed={}, current=0, baseTime=30, timerInterval, overallTime=180
 // SHUFFLE HELPER
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
-// PICK RANDOM ANOMALIES & CREATE ROUNDS
-function pickRandomAnomalies() {
-  return storyParagraphs.map(p=>({...p, displayedOddities: []}));
-}
-
+// CREATE ROUNDS WITH MAX 3 ANOMALIES PER ROUND
 function createRounds() {
   const shuffledParas = shuffle([...storyParagraphs]);
   const rounds = [];
   let i = 0;
 
   while(i < shuffledParas.length){
-    let paras=[], wordCount=0;
-    while(i < shuffledParas.length && wordCount < 200){ // 200+ words per section
+    let paras=[], wordCount = 0;
+    while(i < shuffledParas.length && wordCount < 200){ 
       paras.push({...shuffledParas[i]});
       wordCount += shuffledParas[i].text.split(" ").length;
       i++;
     }
 
-    // Randomly assign up to 3 anomalies
+    // Pick max 3 anomalies total for the round
     let allAnoms = paras.flatMap(p=>p.oddities);
     allAnoms = shuffle(allAnoms).slice(0,3);
-    let count=0;
+    let count = 0;
+
+    // Assign anomalies to paragraphs
     paras.forEach(p=>{
       p.displayedOddities=[];
-      if(count<allAnoms.length && p.oddities.length>0){
-        p.displayedOddities.push(allAnoms[count]);
-        count++;
+      if(count < allAnoms.length && p.oddities.length>0){
+        let available = p.oddities.filter(o => allAnoms.includes(o));
+        if(available.length>0){
+          p.displayedOddities.push(available[0]);
+          count++;
+        }
       }
     });
 
     rounds.push({paragraphs:paras});
   }
+
   return rounds;
 }
 
@@ -133,7 +135,7 @@ function showRound(){
   const round = rounds[current];
   let parasToShow = round.paragraphs.map(p=>p.text).join("\n\n");
 
-  // Amplify missed anomalies or invalid previous guesses
+  // Amplify missed anomalies
   round.paragraphs.forEach(p=>{
     p.displayedOddities.forEach(o=>{
       if((missed[o]||0)>0){
@@ -197,88 +199,91 @@ function handleMissedRound(){
   document.getElementById("feedback").innerText="You waited too long. The world moves on without you.";
   nextRoundOrOver();
 }
-
-// AI GRADING
+  // AI GRADING FUNCTION
 function fakeAIGrade(answers, round){
-  answers=answers.toLowerCase();
-  let missedList=[], invalidInputs=[];
+  answers = answers.toLowerCase();
   const words = answers.split(/[\s,]+/);
+  let missedList = [];
 
+  // Check each anomaly
   round.displayedOddities.forEach(o=>{
-    const oWords=o.toLowerCase().split(" ");
+    const oWords = o.toLowerCase().split(" ");
     const extra = synonyms[oWords[0]]||[];
-    const all=[...oWords,...extra];
-    const match = all.some(word=>words.includes(word));
+    const all = [...oWords, ...extra];
+    const match = all.some(word => words.includes(word));
     if(!match){
       missedList.push(o);
-      missed[o]=(missed[o]||0)+1;
-      baseTime=Math.max(10,baseTime-2);
+      missed[o] = (missed[o] || 0) + 1;
+      baseTime = Math.max(10, baseTime-2);
     } else {
-      missed[o]=0;
+      missed[o] = 0;
     }
   });
 
-  // Detect invalid inputs
+  // Check invalid inputs to amplify anomalies
   words.forEach(w=>{
+    if(w.length===0) return;
     let isValid=false;
     round.displayedOddities.forEach(o=>{
-      const oWords=o.toLowerCase().split(" ");
+      const oWords = o.toLowerCase().split(" ");
       const extra = synonyms[oWords[0]]||[];
-      const all=[...oWords,...extra];
+      const all = [...oWords, ...extra];
       if(all.includes(w)) isValid=true;
     });
-    if(!isValid && w.length>0) invalidInputs.push(w);
+    if(!isValid){
+      // Add subtle amplification
+      round.paragraphs.forEach(p=>{
+        const extras = shuffle(p.oddities).slice(0,1);
+        extras.forEach(e=>{
+          if(!p.displayedOddities.includes(e)) p.displayedOddities.push(e);
+        });
+      });
+    }
   });
 
-  // Amplify for invalid inputs
-  if(invalidInputs.length>0){
-    round.paragraphs.forEach(p=>{
-      const extras = shuffle(p.oddities).slice(0,1);
-      p.displayedOddities.push(...extras);
-    });
-  }
-
-  if(missedList.length===0) return "You saw it all. Nothing slipped by.";
-  return "You missed: "+missedList.join(", ");
+  return missedList;
 }
 
-// END ROUND / NEXT
+// HANDLE NEXT ROUND OR END
 function nextRoundOrOver(){
-  clearInterval(timerInterval);
-  document.getElementById("submitBtn").classList.add("hidden");
-  document.getElementById("nextBtn").classList.remove("hidden");
+  current++;
+  if(current >= rounds.length){
+    gameOver("You reached the end. The dust waits anyway.");
+  } else {
+    document.getElementById("nextBtn").classList.remove("hidden");
+    document.getElementById("submitBtn").classList.add("hidden");
+  }
 }
 
-document.getElementById("submitBtn").onclick = ()=>{
-  clearInterval(timerInterval);
-  const answers=document.getElementById("odditiesInput").value;
-  const round=rounds[current];
-  const result=fakeAIGrade(answers,round);
-  document.getElementById("feedback").innerText=result;
-  nextRoundOrOver();
-};
-
-document.getElementById("nextBtn").onclick = ()=>{
-  current++;
-  if(current>=rounds.length){
-    rounds.push(...createRounds());
-  }
-  showRound();
-};
-
-// START & RESTART BUTTONS
-document.getElementById("startBtn").onclick = startGame;
-document.getElementById("restartBtn").onclick = startGame;
-
-// END SCREEN
+// GAME OVER
 function gameOver(message){
   clearInterval(timerInterval);
   clearInterval(overallInterval);
   document.getElementById("playArea").classList.add("hidden");
   document.getElementById("endScreen").classList.remove("hidden");
-  document.getElementById("endingTitle").innerText="Consumed by the Dust";
-  document.getElementById("endingText").innerText=message;
+  document.getElementById("endingTitle").innerText = "The Dust Wins";
+  document.getElementById("endingText").innerText = message + "\n\nYou can try again.";
 }
+
+// EVENT LISTENERS
+document.getElementById("startBtn").addEventListener("click",startGame);
+document.getElementById("nextBtn").addEventListener("click",()=>{
+  showRound();
+});
+document.getElementById("restartBtn").addEventListener("click",startGame);
+
+document.getElementById("submitBtn").addEventListener("click",()=>{
+  const input = document.getElementById("odditiesInput").value;
+  const round = rounds[current];
+  const missedAnomalies = fakeAIGrade(input, round);
+  if(missedAnomalies.length===0){
+    document.getElementById("feedback").innerText="You spotted all anomalies!";
+  } else {
+    document.getElementById("feedback").innerText="Some oddities remain unseen...";
+  }
+  clearInterval(timerInterval);
+  nextRoundOrOver();
+});
 </script>
 </body>
-  </html>
+</html>
